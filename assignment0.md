@@ -19,22 +19,13 @@ Question 4
 
 Question 5
 ----------
-the	9914
-
-rrb	7875
-
-lrb	7683
-
-and	4928
-
-of	4925
-
-a	3320
-
-in	3102
-
-to	2864
-
-for	1803
-
-s	1521
+game 340  
+for	219  
+and	198  
+day	179  
+score 161  
+world 137  
+record 130  
+lrb	119  
+dark 117  
+strangers 113  
