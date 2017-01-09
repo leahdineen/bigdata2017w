@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package ca.uwaterloo.cs.bigdata2017w.util;
+package io.bespin.java.util;
 
 import java.util.ArrayList;
 import java.util.List;
