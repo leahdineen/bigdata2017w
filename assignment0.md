@@ -3,7 +3,7 @@ CS 489 Big Data Assignment 0
 
 Question 1
 ----------
-the 5
+love 4
 
 Question 2
 ----------

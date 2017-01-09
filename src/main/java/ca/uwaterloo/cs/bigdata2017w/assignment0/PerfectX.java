@@ -64,7 +64,11 @@ public class PerfectX extends Configured implements Tool {
           WORD.set(word);
           context.write(WORD, ONE);
         }
-        if (word.equals("perfect")) perfect_seen = true;
+        if (word.equals("perfect")) {
+          perfect_seen = true;
+        } else {
+          perfect_seen = false;
+        }
       }
     }
   }
@@ -80,11 +84,19 @@ public class PerfectX extends Configured implements Tool {
     @Override
     public void map(LongWritable key, Text value, Context context)
         throws IOException, InterruptedException {
+      boolean perfect_seen = false;
       for (String word : Tokenizer.tokenize(value.toString())) {
-        if (counts.containsKey(word)) {
-          counts.put(word, counts.get(word)+1);
+        if (perfect_seen) {
+          if (counts.containsKey(word)) {
+            counts.put(word, counts.get(word)+1);
+          } else {
+            counts.put(word, 1);
+          }
+        }
+        if (word.equals("perfect")) {
+          perfect_seen = true;
         } else {
-          counts.put(word, 1);
+          perfect_seen = false;
         }
       }
     }
