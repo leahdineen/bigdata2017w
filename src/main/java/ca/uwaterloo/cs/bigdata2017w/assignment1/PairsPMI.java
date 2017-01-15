@@ -53,12 +53,18 @@ public class PairsPMI extends Configured implements Tool {
     public void map(LongWritable key, Text value, Context context)
         throws IOException, InterruptedException {
       List<String> tokens = Tokenizer.tokenize(value.toString());
+      Set<String> distinct = new HashSet<String>();
       // only consider the first 40 words of each line per assignment instructions
       int loop_size = Math.min(CONTEXT_SIZE, tokens.size());
 
+      WORD.set("*");
+      context.write(WORD, ONE);
+
       for (int i = 0; i < loop_size; i++) {
-        WORD.set(tokens.get(i));
-        context.write(WORD, ONE);
+        if (distinct.add(tokens.get(i))) {
+          WORD.set(tokens.get(i));
+          context.write(WORD, ONE);
+        }
       }
     }
   }
@@ -89,20 +95,20 @@ public class PairsPMI extends Configured implements Tool {
     public void map(LongWritable key, Text value, Context context)
         throws IOException, InterruptedException {
       List<String> tokens = Tokenizer.tokenize(value.toString());
+      Set<PairOfStrings> distinct = new HashSet<PairOfStrings>();
       // only consider the first 40 words of each line per assignment instructions
       int loop_size = Math.min(CONTEXT_SIZE, tokens.size());
 
       if (tokens.size() < 2) return;
       for (int i = 0; i < loop_size; i++) {
-        PAIR.set(tokens.get(i), "*");
-        context.write(PAIR, ONE);        
+        // PAIR.set(tokens.get(i), "*");
+        // context.write(PAIR, ONE);        
         for(int j = i + 1; j < loop_size; j++) {
-          if (!tokens.get(i).equals(tokens.get(j))) {
-            PAIR.set(tokens.get(i), tokens.get(j));
+          PAIR.set(tokens.get(i), tokens.get(j));
+          if (!tokens.get(i).equals(tokens.get(j)) && distinct.add(PAIR)) {
             context.write(PAIR, ONE);
           }
         }
-
       }
     }
   }
@@ -130,7 +136,7 @@ public class PairsPMI extends Configured implements Tool {
     private static final FloatWritable PMI = new FloatWritable();
     private static final PairOfFloatInt PMI_COUNT = new PairOfFloatInt();
     private static Map<String, Integer> word_counts = new HashMap<String, Integer>();
-    private float total_words = 0;
+    private float total_lines = 0.0f;
     private float marginal = 0.0f;
     private float p_x_given_y = 0.0f;
     private float p_x = 0.0f;
@@ -143,29 +149,31 @@ public class PairsPMI extends Configured implements Tool {
     public void setup(Context context) throws IOException {
       threshold = context.getConfiguration().getInt("threshold", 1);
 
-      // FileSystem fs = FileSystem.get(context.getConfiguration());
-      // Path intermediatePath = new Path("lmdineen_occurrence_counts/part-r-00000");
+      FileSystem fs = FileSystem.get(context.getConfiguration());
+      Path intermediatePath = new Path("lmdineen_occurrence_counts/part-r-00000");
 
-      // BufferedReader input = null;
-      // try{
-      //   FSDataInputStream in = fs.open(intermediatePath);
-      //   InputStreamReader inStream = new InputStreamReader(in);
-      //   input = new BufferedReader(inStream);
+      BufferedReader input = null;
+      try{
+        FSDataInputStream in = fs.open(intermediatePath);
+        InputStreamReader inStream = new InputStreamReader(in);
+        input = new BufferedReader(inStream);
         
-      // } catch(FileNotFoundException e){
-      //   throw new IOException("Cannot open occurence counts file");
-      // }
+      } catch(FileNotFoundException e){
+        throw new IOException("Cannot open occurence counts file");
+      }
       
-      // String line = input.readLine();
-      // while(line != null){
-      //   String[] parts = line.split("\\s+");
-      //   word_counts.put(parts[0], Integer.parseInt(parts[1]));
-      //   total_words += Integer.parseInt(parts[1]);
-      //   line = input.readLine();
-      // }
-      // input.close();
-      // LOG.info("Total words: " + total_words);
-
+      String line = input.readLine();
+      while(line != null){
+        String[] parts = line.split("\\s+");
+        if (parts[0].equals("*")){
+          total_lines = Integer.parseInt(parts[1]);
+        } else {
+          word_counts.put(parts[0], Integer.parseInt(parts[1]));
+        }
+        line = input.readLine();
+      }
+      input.close();
+      LOG.info("Total lines: " + total_lines);
     }
 
     @Override
@@ -178,17 +186,13 @@ public class PairsPMI extends Configured implements Tool {
         sum += iter.next().get();
       }
 
-      if (key.getRightElement().equals("*")) {
-        marginal = sum;
-      } else if (sum >= threshold) {
-        // probability we will see the right word given that we have seen the left
-        p_x_given_y = sum / marginal; //double check these things
-        // p_x_and_y = sum / total_words;
-        // // probability we will see the right word
-        // p_x = word_counts.get(key.getRightElement()) / total_words;
-        // p_y = word_counts.get(key.getLeftElement()) / total_words;
+      if (sum >= threshold) {
+        p_x_and_y = sum / total_lines;
+        // probability we will see the right word
+        p_x = word_counts.get(key.getRightElement()) / total_lines;
+        p_y = word_counts.get(key.getLeftElement()) / total_lines;
 
-        pmi = (float) (Math.log(p_x_given_y) / Math.log(10));
+        pmi = (float) (Math.log(p_x_and_y / (p_x * p_y)) / Math.log(10));
         PMI_COUNT.set(pmi, sum);
         context.write(key, PMI_COUNT);
       }
@@ -294,6 +298,12 @@ public class PairsPMI extends Configured implements Tool {
     pairsJob.setCombinerClass(PairsCombiner.class);
     pairsJob.setReducerClass(PairsReducer.class);
     pairsJob.setPartitionerClass(MyPartitioner.class);
+
+    pairsJob.getConfiguration().setInt("mapred.max.split.size", 1024 * 1024 * 32);
+    pairsJob.getConfiguration().set("mapreduce.map.memory.mb", "3072");
+    pairsJob.getConfiguration().set("mapreduce.map.java.opts", "-Xmx3072m");
+    pairsJob.getConfiguration().set("mapreduce.reduce.memory.mb", "3072");
+    pairsJob.getConfiguration().set("mapreduce.reduce.java.opts", "-Xmx3072m");
 
     // Delete the output directory if it exists already.
     Path outputDir = new Path(args.output);
