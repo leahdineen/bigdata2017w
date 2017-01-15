@@ -143,28 +143,28 @@ public class PairsPMI extends Configured implements Tool {
     public void setup(Context context) throws IOException {
       threshold = context.getConfiguration().getInt("threshold", 1);
 
-      FileSystem fs = FileSystem.get(context.getConfiguration());
-      Path intermediatePath = new Path("occurrence_counts/part-r-00000");
+      // FileSystem fs = FileSystem.get(context.getConfiguration());
+      // Path intermediatePath = new Path("lmdineen_occurrence_counts/part-r-00000");
 
-      BufferedReader input = null;
-      try{
-        FSDataInputStream in = fs.open(intermediatePath);
-        InputStreamReader inStream = new InputStreamReader(in);
-        input = new BufferedReader(inStream);
+      // BufferedReader input = null;
+      // try{
+      //   FSDataInputStream in = fs.open(intermediatePath);
+      //   InputStreamReader inStream = new InputStreamReader(in);
+      //   input = new BufferedReader(inStream);
         
-      } catch(FileNotFoundException e){
-        throw new IOException("Cannot open occurence counts file");
-      }
+      // } catch(FileNotFoundException e){
+      //   throw new IOException("Cannot open occurence counts file");
+      // }
       
-      String line = input.readLine();
-      while(line != null){
-        String[] parts = line.split("\\s+");
-        word_counts.put(parts[0], Integer.parseInt(parts[1]));
-        total_words += Integer.parseInt(parts[1]);
-        line = input.readLine();
-      }
-      input.close();
-      LOG.info("Total words: " + total_words);
+      // String line = input.readLine();
+      // while(line != null){
+      //   String[] parts = line.split("\\s+");
+      //   word_counts.put(parts[0], Integer.parseInt(parts[1]));
+      //   total_words += Integer.parseInt(parts[1]);
+      //   line = input.readLine();
+      // }
+      // input.close();
+      // LOG.info("Total words: " + total_words);
 
     }
 
@@ -183,12 +183,12 @@ public class PairsPMI extends Configured implements Tool {
       } else if (sum >= threshold) {
         // probability we will see the right word given that we have seen the left
         p_x_given_y = sum / marginal; //double check these things
-        p_x_and_y = sum / total_words;
-        // probability we will see the right word
-        p_x = word_counts.get(key.getRightElement()) / total_words;
-        p_y = word_counts.get(key.getLeftElement()) / total_words;
+        // p_x_and_y = sum / total_words;
+        // // probability we will see the right word
+        // p_x = word_counts.get(key.getRightElement()) / total_words;
+        // p_y = word_counts.get(key.getLeftElement()) / total_words;
 
-        pmi = (float) (Math.log(p_x_and_y / (p_x * p_y)) / Math.log(10));
+        pmi = (float) (Math.log(p_x_given_y) / Math.log(10));
         PMI_COUNT.set(pmi, sum);
         context.write(key, PMI_COUNT);
       }
@@ -243,7 +243,7 @@ public class PairsPMI extends Configured implements Tool {
     LOG.info(" - num reducers: " + args.numReducers);
     LOG.info(" - threshold: " + args.threshold);
 
-    String intermediatePath = "occurrence_counts";
+    String intermediatePath = "lmdineen_occurrence_counts";
 
     Configuration conf = getConf();
     conf.setInt("threshold", args.threshold);
@@ -277,7 +277,7 @@ public class PairsPMI extends Configured implements Tool {
 
 
     Job pairsJob = Job.getInstance(getConf());
-    pairsJob.setJobName(PairsPMI.class.getSimpleName() + "PairsPMIComputation");
+    pairsJob.setJobName(PairsPMI.class.getSimpleName() + "Computation");
     pairsJob.setJarByClass(PairsPMI.class);
     pairsJob.setNumReduceTasks(args.numReducers);
 
