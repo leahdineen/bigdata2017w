@@ -100,9 +100,7 @@ public class PairsPMI extends Configured implements Tool {
       int loop_size = Math.min(CONTEXT_SIZE, tokens.size());
 
       if (tokens.size() < 2) return;
-      for (int i = 0; i < loop_size; i++) {
-        // PAIR.set(tokens.get(i), "*");
-        // context.write(PAIR, ONE);        
+      for (int i = 0; i < loop_size; i++) {    
         for(int j = i + 1; j < loop_size; j++) {
           PAIR.set(tokens.get(i), tokens.get(j));
           if (!tokens.get(i).equals(tokens.get(j)) && distinct.add(PAIR)) {
@@ -137,8 +135,6 @@ public class PairsPMI extends Configured implements Tool {
     private static final PairOfFloatInt PMI_COUNT = new PairOfFloatInt();
     private static Map<String, Integer> word_counts = new HashMap<String, Integer>();
     private float total_lines = 0.0f;
-    private float marginal = 0.0f;
-    private float p_x_given_y = 0.0f;
     private float p_x = 0.0f;
     private float p_y = 0.0f;
     private float p_x_and_y = 0.0f;
@@ -150,7 +146,7 @@ public class PairsPMI extends Configured implements Tool {
       threshold = context.getConfiguration().getInt("threshold", 1);
 
       FileSystem fs = FileSystem.get(context.getConfiguration());
-      Path intermediatePath = new Path("lmdineen_occurrence_counts/part-r-00000");
+      Path intermediatePath = new Path("lmdineen_occurrence_counts_pairs/part-r-00000");
 
       BufferedReader input = null;
       try{
@@ -247,7 +243,7 @@ public class PairsPMI extends Configured implements Tool {
     LOG.info(" - num reducers: " + args.numReducers);
     LOG.info(" - threshold: " + args.threshold);
 
-    String intermediatePath = "lmdineen_occurrence_counts";
+    String intermediatePath = "lmdineen_occurrence_counts_pairs";
 
     Configuration conf = getConf();
     conf.setInt("threshold", args.threshold);
