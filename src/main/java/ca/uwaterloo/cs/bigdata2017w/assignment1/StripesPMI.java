@@ -309,11 +309,6 @@ public class StripesPMI extends Configured implements Tool {
     Path intermediateDir = new Path(intermediatePath);
     FileSystem.get(conf).delete(intermediateDir, true);
 
-    long startTime = System.currentTimeMillis();
-    occurenceJob.waitForCompletion(true);
-    System.out.println("Occurence Job Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
-
-
     Job stripesJob = Job.getInstance(getConf());
     stripesJob.setJobName(StripesPMI.class.getSimpleName() + "Computation");
     stripesJob.setJarByClass(StripesPMI.class);
@@ -343,9 +338,10 @@ public class StripesPMI extends Configured implements Tool {
     Path outputDir = new Path(args.output);
     FileSystem.get(getConf()).delete(outputDir, true);
 
-    startTime = System.currentTimeMillis();
+    long startTime = System.currentTimeMillis();
+    occurenceJob.waitForCompletion(true);
     stripesJob.waitForCompletion(true);
-    System.out.println("Stripes Job Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
+    System.out.println("StripesPMI Job Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
 
     return 0;
   }

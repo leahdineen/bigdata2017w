@@ -5,17 +5,25 @@ Question 1
 ----------
 (description)
 
+
 Question 2
 ----------
-(running time)
+linux.student.cs.uwaterloo.ca was used to find both running times  
+Pairs Running Time: 31.659s  
+Stripes Running Time: 21.443s
+
 
 Question 3
 ----------
-(running time without combiners)
+linux.student.cs.uwaterloo.ca was used to find both running times  
+Pairs Running Time Without Combiners: 34.073s  
+Stripes Running Time: 23.278s
+
 
 Question 4
 ----------
 37917 distinct pairs extracted
+
 
 Question 5
 ----------
@@ -24,6 +32,7 @@ Highest PMI
 
 Lowest PMI  
 (you, thou)	(-1.622328, 12)  
+
 
 Question 6
 ----------
@@ -37,5 +46,10 @@ Highest PMI with "death"
 (death, hath) (-0.007034012, 13)  
 (death, or) (-0.020579664, 15)  
 
+
 Question 7
+----------
+
+
+Question 8
 ----------

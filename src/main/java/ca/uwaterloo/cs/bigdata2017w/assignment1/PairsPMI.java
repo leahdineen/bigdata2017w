@@ -68,9 +68,9 @@ public class PairsPMI extends Configured implements Tool {
       }
     }
   }
-
+  
   // Reducer: sums up all the counts.
-  public static final class OccurenceReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+  public static final class OccurenceCombiner extends Reducer<Text, IntWritable, Text, IntWritable> {
     private static final IntWritable SUM = new IntWritable();
 
     @Override
@@ -83,6 +83,31 @@ public class PairsPMI extends Configured implements Tool {
       }
       SUM.set(sum);
       context.write(key, SUM);
+    }
+  }
+
+  // Reducer: sums up all the counts.
+  public static final class OccurenceReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+    private static final IntWritable SUM = new IntWritable();
+    private int threshold = 1;
+
+    @Override
+    public void setup(Context context) throws IOException {
+      threshold = context.getConfiguration().getInt("threshold", 1);
+    }
+
+    @Override
+    public void reduce(Text key, Iterable<IntWritable> values, Context context)
+        throws IOException, InterruptedException {
+      Iterator<IntWritable> iter = values.iterator();
+      int sum = 0;
+      while (iter.hasNext()) {
+        sum += iter.next().get();
+      }
+      if(sum >= threshold) {
+        SUM.set(sum);
+        context.write(key, SUM);
+      }
     }
   }
 
@@ -169,7 +194,6 @@ public class PairsPMI extends Configured implements Tool {
         line = input.readLine();
       }
       input.close();
-      LOG.info("Total lines: " + total_lines);
     }
 
     @Override
@@ -264,17 +288,12 @@ public class PairsPMI extends Configured implements Tool {
     occurenceJob.setOutputFormatClass(TextOutputFormat.class);
 
     occurenceJob.setMapperClass(OccurenceMapper.class);
-    occurenceJob.setCombinerClass(OccurenceReducer.class);
+    occurenceJob.setCombinerClass(OccurenceCombiner.class);
     occurenceJob.setReducerClass(OccurenceReducer.class);
 
     // Delete the output directory if it exists already.
     Path intermediateDir = new Path(intermediatePath);
     FileSystem.get(conf).delete(intermediateDir, true);
-
-    long startTime = System.currentTimeMillis();
-    occurenceJob.waitForCompletion(true);
-    System.out.println("Occurence Job Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
-
 
     Job pairsJob = Job.getInstance(getConf());
     pairsJob.setJobName(PairsPMI.class.getSimpleName() + "Computation");
@@ -305,9 +324,10 @@ public class PairsPMI extends Configured implements Tool {
     Path outputDir = new Path(args.output);
     FileSystem.get(getConf()).delete(outputDir, true);
 
-    startTime = System.currentTimeMillis();
+    long startTime = System.currentTimeMillis();
+    occurenceJob.waitForCompletion(true);
     pairsJob.waitForCompletion(true);
-    System.out.println("Pairs Job Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
+    System.out.println("PairsPMI Job Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
 
     return 0;
   }
