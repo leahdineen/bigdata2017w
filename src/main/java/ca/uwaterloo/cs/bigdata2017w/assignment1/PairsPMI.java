@@ -176,7 +176,7 @@ public class PairsPMI extends Configured implements Tool {
       BufferedReader input = null;
       try{
         FSDataInputStream in = fs.open(intermediatePath);
-        InputStreamReader inStream = new InputStreamReader(in);
+        InputStreamReader inStream = new InputStreamReader(in, "UTF-8");
         input = new BufferedReader(inStream);
         
       } catch(FileNotFoundException e){

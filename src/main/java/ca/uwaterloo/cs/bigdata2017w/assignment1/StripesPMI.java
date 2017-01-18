@@ -193,7 +193,7 @@ public class StripesPMI extends Configured implements Tool {
       BufferedReader input = null;
       try {
         FSDataInputStream in = fs.open(intermediatePath);
-        InputStreamReader inStream = new InputStreamReader(in);
+        InputStreamReader inStream = new InputStreamReader(in, "UTF-8");
         input = new BufferedReader(inStream);
         
       } catch(FileNotFoundException e) {
@@ -220,8 +220,6 @@ public class StripesPMI extends Configured implements Tool {
     public void reduce(Text key, Iterable<HMapStIW> values, Context context)
         throws IOException, InterruptedException {
 
-        //try making combined a regular hashmap and then make it writable later
-          // like after the pmi calculation
        for (HMapStIW map : values) {
         for (String word : map.keySet()) {
           if (COMBINED.containsKey(word)) {
@@ -235,17 +233,15 @@ public class StripesPMI extends Configured implements Tool {
       Iterator<String> it = COMBINED.keySet().iterator();
       while(it.hasNext()) {
         String word = it.next();
-        int count = COMBINED.get(word);
-        if (count < threshold) {
-            it.remove();
-        } else {
-          p_x_and_y = count / total_lines;
+        int pair_count = COMBINED.get(word);
+        if (pair_count >= threshold) {
+          p_x_and_y = pair_count / total_lines;
           // probability we will see the right word
           p_y = word_counts.get(word) / total_lines;
           p_x = word_counts.get(key.toString()) / total_lines;
 
           pmi = (float) (Math.log(p_x_and_y / (p_x * p_y)) / Math.log(10));
-          PairOfFloatInt pmi_count = new PairOfFloatInt(pmi, count);
+          PairOfFloatInt pmi_count = new PairOfFloatInt(pmi, pair_count);
           Text pmi_key = new Text(word);
           PMI_MAP.put(pmi_key, pmi_count);
         }
