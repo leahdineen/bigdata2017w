@@ -57,8 +57,8 @@ public class StripesPMI extends Configured implements Tool {
     @Override
     public void map(LongWritable key, Text value, Context context)
         throws IOException, InterruptedException {
-            List<String> tokens = Tokenizer.tokenize(value.toString());
-      
+
+      List<String> tokens = Tokenizer.tokenize(value.toString());
       Set<String> distinct = new HashSet<String>();
       // only consider the first 40 words of each line per assignment instructions
       int loop_size = Math.min(CONTEXT_SIZE, tokens.size());
@@ -110,15 +110,12 @@ public class StripesPMI extends Configured implements Tool {
       while (iter.hasNext()) {
         sum += iter.next().get();
       }
-      if(sum >= threshold) {
-        SUM.set(sum);
-        context.write(key, SUM);
-      }
+      SUM.set(sum);
+      context.write(key, SUM);
     }
   }
 
   private static final class StripesMapper extends Mapper<LongWritable, Text, Text, HMapStIW> {
-    private static final IntWritable ONE = new IntWritable(1);
     private static final HMapStIW DISTINCT = new HMapStIW();  
     private static final Text KEY = new Text();
     private static final int CONTEXT_SIZE = 40;
@@ -132,8 +129,8 @@ public class StripesPMI extends Configured implements Tool {
 
       if (tokens.size() < 2) return;
       for (int i = 0; i < loop_size; i++) {
-        for (int j = i + 1; j < loop_size; j++) {
-          if (!tokens.get(i).equals(tokens.get(j)) && !DISTINCT.containsKey(tokens.get(j))) {
+        for (int j = 0; j < loop_size; j++) {
+          if (!tokens.get(i).equals(tokens.get(j))) {
             DISTINCT.put(tokens.get(j), 1);
           }
         }
@@ -170,11 +167,8 @@ public class StripesPMI extends Configured implements Tool {
   private static final class StripesReducer extends
       Reducer<Text, HMapStIW, Text, HashMapWritable> {
     private static final Map<String, Integer> COMBINED = new HashMap<String, Integer>();
-    private static final HMapStIW MAP = new HMapStIW();
     private static final HashMapWritable PMI_MAP = new HashMapWritable();
-    private static final FloatWritable SUM = new FloatWritable();
     private static final Text PMI_KEY = new Text();
-    private static final PairOfFloatInt PMI_COUNT = new PairOfFloatInt();
     private static Map<String, Integer> word_counts = new HashMap<String, Integer>();
     private float total_lines = 0.0f;
     private float p_x = 0.0f;
@@ -230,9 +224,7 @@ public class StripesPMI extends Configured implements Tool {
         }
       }
 
-      Iterator<String> it = COMBINED.keySet().iterator();
-      while(it.hasNext()) {
-        String word = it.next();
+      for (String word : COMBINED.keySet()) {
         int pair_count = COMBINED.get(word);
         if (pair_count >= threshold) {
           p_x_and_y = pair_count / total_lines;

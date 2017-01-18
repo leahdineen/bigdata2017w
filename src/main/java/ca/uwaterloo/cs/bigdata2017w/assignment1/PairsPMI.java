@@ -52,6 +52,7 @@ public class PairsPMI extends Configured implements Tool {
     @Override
     public void map(LongWritable key, Text value, Context context)
         throws IOException, InterruptedException {
+
       List<String> tokens = Tokenizer.tokenize(value.toString());
       Set<String> distinct = new HashSet<String>();
       // only consider the first 40 words of each line per assignment instructions
@@ -119,16 +120,18 @@ public class PairsPMI extends Configured implements Tool {
     @Override
     public void map(LongWritable key, Text value, Context context)
         throws IOException, InterruptedException {
+
       List<String> tokens = Tokenizer.tokenize(value.toString());
-      Set<PairOfStrings> distinct = new HashSet<PairOfStrings>();
+      Set<String> distinct = new HashSet<String>();
       // only consider the first 40 words of each line per assignment instructions
       int loop_size = Math.min(CONTEXT_SIZE, tokens.size());
 
       if (tokens.size() < 2) return;
       for (int i = 0; i < loop_size; i++) {    
-        for(int j = i + 1; j < loop_size; j++) {
+        for(int j = 0; j < loop_size; j++) {
           PAIR.set(tokens.get(i), tokens.get(j));
-          if (!tokens.get(i).equals(tokens.get(j)) && distinct.add(PAIR)) {
+          String set_str = tokens.get(i) + tokens.get(j);
+          if (!tokens.get(i).equals(tokens.get(j)) && distinct.add(set_str)) {
             context.write(PAIR, ONE);
           }
         }

@@ -3,14 +3,16 @@ CS 489 Big Data Assignment 1
 
 Question 1
 ----------
-(description)
-
+Pairs  
+My pairs implementation runs 2 MapReduce jobs. The first counts the number of lines in the file, and how many lines each word occurs on. A word is written to an intermediate file if it occurs on a number of lines greater than the threshold. The second job counts the number of lines the pairs of words occur on. The reducer of the second job loads the intermediate file, and creates a HashMap mapping each word to the number of lines it occurs on. The reducer sums the occurence of X and Y and computes the probability of P(X, Y) by dividing by the total number of lines. P(X) is calculated by getting the count of X from the HashMap and dividing by the total number of lines. Similarly P(Y) is computed. At this point, we have all the needed information to calculate the PMI. The reducer outputs the pair of words along with their PMI and their co-occurence count.
+  
+Stripes
 
 Question 2
 ----------
 linux.student.cs.uwaterloo.ca was used to find both running times  
-Pairs Running Time: 31.659s  
-Stripes Running Time: 21.443s
+Pairs Running Time: 52.368s  
+Stripes Running Time: 28.399s
 
 
 Question 3
@@ -22,44 +24,29 @@ Stripes Running Time Without Combiners: 23.278s
 
 Question 4
 ----------
-37917 distinct pairs extracted
+38598 distinct pairs extracted
 
 
 Question 5
 ----------
 Highest PMI  
-(milford, haven) (3.6201773, 11)  
 
 Lowest PMI  
-(you, thou)	(-1.622328, 12)  
 
 
 Question 6
 ----------
 Highest PMI with "tears"  
-(tears, are) (0.19612645, 12)  
-(tears, for) (-0.115245804, 13)  
-(tears, his) (-0.17157905, 10)  
+
 
 Highest PMI with "death"  
-(death, life) (0.36071625, 13)  
-(death, hath) (-0.007034012, 13)  
-(death, or) (-0.020579664, 15)  
+
 
 
 Question 7
 ----------
-(hockey, defenceman) (2.3849285, 141)  
-(hockey, winger) (2.3647165, 176)  
-(hockey, goaltender) (2.2115955, 184)  
-(hockey, nhl) (1.8181567, 638)  
-(hockey, canadiens) (1.7610953, 77)  
 
 
 Question 8
 ----------
-(data, storage) (1.8934968, 82)  
-(data, stored) (1.7298163, 57)  
-(data, structure) (1.4467512, 107)  
-(data, information) (1.0224539, 81)  
-(data, computer) (0.94461024, 83)  
+
