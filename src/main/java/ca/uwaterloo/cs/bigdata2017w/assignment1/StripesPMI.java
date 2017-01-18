@@ -76,13 +76,12 @@ public class StripesPMI extends Configured implements Tool {
   }
 
   // Reducer: sums up all the counts.
-  public static final class OccurenceReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+  public static final class OccurenceCombiner extends Reducer<Text, IntWritable, Text, IntWritable> {
     private static final IntWritable SUM = new IntWritable();
 
     @Override
     public void reduce(Text key, Iterable<IntWritable> values, Context context)
         throws IOException, InterruptedException {
-      
       Iterator<IntWritable> iter = values.iterator();
       int sum = 0;
       while (iter.hasNext()) {
@@ -93,9 +92,34 @@ public class StripesPMI extends Configured implements Tool {
     }
   }
 
+  // Reducer: sums up all the counts.
+  public static final class OccurenceReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+    private static final IntWritable SUM = new IntWritable();
+    private int threshold = 1;
+
+    @Override
+    public void setup(Context context) throws IOException {
+      threshold = context.getConfiguration().getInt("threshold", 1);
+    }
+
+    @Override
+    public void reduce(Text key, Iterable<IntWritable> values, Context context)
+        throws IOException, InterruptedException {
+      Iterator<IntWritable> iter = values.iterator();
+      int sum = 0;
+      while (iter.hasNext()) {
+        sum += iter.next().get();
+      }
+      if(sum >= threshold) {
+        SUM.set(sum);
+        context.write(key, SUM);
+      }
+    }
+  }
+
   private static final class StripesMapper extends Mapper<LongWritable, Text, Text, HMapStIW> {
     private static final IntWritable ONE = new IntWritable(1);
-    private static final HMapStIW MAP = new HMapStIW();  
+    private static final HMapStIW DISTINCT = new HMapStIW();  
     private static final Text KEY = new Text();
     private static final int CONTEXT_SIZE = 40;
 
@@ -109,13 +133,13 @@ public class StripesPMI extends Configured implements Tool {
       if (tokens.size() < 2) return;
       for (int i = 0; i < loop_size; i++) {
         for (int j = i + 1; j < loop_size; j++) {
-          if (!tokens.get(i).equals(tokens.get(j)) && !MAP.containsKey(tokens.get(j))) {
-              MAP.put(tokens.get(j), 1);
+          if (!tokens.get(i).equals(tokens.get(j)) && !DISTINCT.containsKey(tokens.get(j))) {
+            DISTINCT.put(tokens.get(j), 1);
           }
         }
         KEY.set(tokens.get(i));
-        context.write(KEY, MAP);
-        MAP.clear();
+        context.write(KEY, DISTINCT);
+        DISTINCT.clear();
       }
     }
   }
@@ -179,7 +203,9 @@ public class StripesPMI extends Configured implements Tool {
       String line = input.readLine();
       while (line != null) {
         String[] parts = line.split("\\s+");
-        if (parts[0].equals("*")){
+        if(parts.length != 2){
+          LOG.info("Input line should have 2 tokens: '" + line + "'");
+        } else if (parts[0].equals("*")){
           total_lines = Integer.parseInt(parts[1]);
         } else {
           word_counts.put(parts[0], Integer.parseInt(parts[1]));
@@ -302,7 +328,7 @@ public class StripesPMI extends Configured implements Tool {
     occurenceJob.setOutputFormatClass(TextOutputFormat.class);
 
     occurenceJob.setMapperClass(OccurenceMapper.class);
-    occurenceJob.setCombinerClass(OccurenceReducer.class);
+    occurenceJob.setCombinerClass(OccurenceCombiner.class);
     occurenceJob.setReducerClass(OccurenceReducer.class);
 
     // Delete the output directory if it exists already.

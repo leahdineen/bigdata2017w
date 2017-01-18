@@ -186,7 +186,9 @@ public class PairsPMI extends Configured implements Tool {
       String line = input.readLine();
       while(line != null){
         String[] parts = line.split("\\s+");
-        if (parts[0].equals("*")){
+        if(parts.length != 2){
+          LOG.info("Input line should have 2 tokens: '" + line + "'");
+        } else if (parts[0].equals("*")) {
           total_lines = Integer.parseInt(parts[1]);
         } else {
           word_counts.put(parts[0], Integer.parseInt(parts[1]));
@@ -194,6 +196,7 @@ public class PairsPMI extends Configured implements Tool {
         line = input.readLine();
       }
       input.close();
+      LOG.info("Total lines: " + total_lines);
     }
 
     @Override
@@ -211,7 +214,7 @@ public class PairsPMI extends Configured implements Tool {
         // probability we will see the right word
         p_x = word_counts.get(key.getRightElement()) / total_lines;
         p_y = word_counts.get(key.getLeftElement()) / total_lines;
-
+        
         pmi = (float) (Math.log(p_x_and_y / (p_x * p_y)) / Math.log(10));
         PMI_COUNT.set(pmi, sum);
         context.write(key, PMI_COUNT);
