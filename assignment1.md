@@ -3,27 +3,34 @@ CS 489 Big Data Assignment 1
 
 Question 1
 ----------
+
+Briefly describe in prose your solution, both the pairs and stripes implementation. For example: how many MapReduce jobs? What are the input records? What are the intermediate key-value pairs? What are the final output records? A paragraph for each implementation is about the expected length.
+
 **Pairs**  
-My pairs implementation runs 2 MapReduce jobs. The first counts the number of lines in the file, and how many lines each word occurs on. A word is written to an intermediate file if it occurs on a number of lines greater than the threshold. The second job counts the number of lines the pairs of words occur on. The reducer of the second job loads the intermediate file, and creates a HashMap mapping each word to the number of lines it occurs on. The reducer sums the occurence of X and Y and computes the probability of P(X, Y) by dividing by the total number of lines. P(X) is calculated by getting the count of X from the HashMap and dividing by the total number of lines. Similarly P(Y) is computed. At this point, we have all the needed information to calculate the PMI. The reducer outputs the pair of words along with their PMI and their co-occurence count.
+My pairs implementation runs 2 MapReduce jobs. The first counts the number of lines in the file, and how many lines each word occurs on. A word is written to an intermediate file if it occurs on a number of lines greater than the threshold. The format of the intermediate file is as follows.  
+word count  
+The second job counts the number of lines the pairs of words occur on. The reducer of the second job loads the intermediate file, and creates a HashMap mapping each word to the count. The reducer sums the occurence of X and Y and computes the probability of P(X, Y) by dividing by the total number of lines. P(X) is calculated by getting the count of X from the HashMap and dividing by the total number of lines. Similarly P(Y) is computed. At this point, we have all the needed information to calculate the PMI. The reducer outputs the pair of words along with their PMI and their co-occurence count. The final output file is formatted as follows.  
+(word1, word2) (PMI, count)  
   
 **Stripes**  
-The stripes implementation also has 2 jobs, the first of which counts the number of occurences of each word as described above. 
+The stripes implementation also has 2 jobs, the first of which counts the number of occurences of each word and writes to an intermediate file as described above. The second mapper takes in a line and outputs each distinct word alongwith a map containing all other distinct words as the key and 1 as the value. For example.  
+word1 {word2=1, word3=1}
+The combiner does an element wise sum of the map. The reducer loads the word counts from the first job into a HashMap to be used to calculate the PMI. It does an element wise sum like the combiner, and then loops over the elements in the map. If the element's count exceeds the threshold, then the PMI is calculated. The output is a word with a map of co-occuring words, each of which mapping to a PMI, co-occurence count pair. The final output file is formatted as follows.  
+word1 {word2=(PMI, count), word3=(PMI, count)}  
 
-REDO RUNNING TIMES
-RERUN ON CLUSTER
 
 Question 2
 ----------
 linux.student.cs.uwaterloo.ca was used to find both running times  
-Pairs Running Time: 52.689s  
-Stripes Running Time: 25.348s
+Pairs Running Time: 49.499s  
+Stripes Running Time: 24.201s  
 
 
 Question 3
 ----------
 linux.student.cs.uwaterloo.ca was used to find both running times  
-Pairs Running Time Without Combiners: 34.073s  
-Stripes Running Time Without Combiners: 23.278s
+Pairs Running Time Without Combiners: 59.023s  
+Stripes Running Time Without Combiners: 28.506s  
 
 
 Question 4
