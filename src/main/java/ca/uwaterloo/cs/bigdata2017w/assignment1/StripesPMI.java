@@ -48,7 +48,7 @@ import java.util.HashSet;
 public class StripesPMI extends Configured implements Tool {
   private static final Logger LOG = Logger.getLogger(StripesPMI.class);
 
-  // Mapper: emits (token, 1) for every word occurrence.
+  // Mapper: emits (token, 1) for every distinct word occurrence on the line.
   public static final class OccurenceMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
     private static final IntWritable ONE = new IntWritable(1);
     private static final Text WORD = new Text();
@@ -63,10 +63,12 @@ public class StripesPMI extends Configured implements Tool {
       // only consider the first 40 words of each line per assignment instructions
       int loop_size = Math.min(CONTEXT_SIZE, tokens.size());
 
+      // emit a * in order to count the number of lines in the file
       WORD.set("*");
       context.write(WORD, ONE);
 
       for (int i = 0; i < loop_size; i++) {
+        // check if we have seen the word before
         if (distinct.add(tokens.get(i))) {
           WORD.set(tokens.get(i));
           context.write(WORD, ONE);
@@ -75,13 +77,14 @@ public class StripesPMI extends Configured implements Tool {
     }
   }
 
-  // Reducer: sums up all the counts.
+  // Combiner: sums up all the word counts.
   public static final class OccurenceCombiner extends Reducer<Text, IntWritable, Text, IntWritable> {
     private static final IntWritable SUM = new IntWritable();
 
     @Override
     public void reduce(Text key, Iterable<IntWritable> values, Context context)
         throws IOException, InterruptedException {
+      
       Iterator<IntWritable> iter = values.iterator();
       int sum = 0;
       while (iter.hasNext()) {
@@ -92,7 +95,7 @@ public class StripesPMI extends Configured implements Tool {
     }
   }
 
-  // Reducer: sums up all the counts.
+  // Reducer: sums up all the word counts.
   public static final class OccurenceReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
     private static final IntWritable SUM = new IntWritable();
     private int threshold = 1;
@@ -105,16 +108,19 @@ public class StripesPMI extends Configured implements Tool {
     @Override
     public void reduce(Text key, Iterable<IntWritable> values, Context context)
         throws IOException, InterruptedException {
+      
       Iterator<IntWritable> iter = values.iterator();
       int sum = 0;
       while (iter.hasNext()) {
         sum += iter.next().get();
       }
+      
       SUM.set(sum);
       context.write(key, SUM);
     }
   }
 
+  // Mapper: emits (X {(Y, 1), (Z, 1)}) for every distinct word pair occurrence on the line.
   private static final class StripesMapper extends Mapper<LongWritable, Text, Text, HMapStIW> {
     private static final HMapStIW DISTINCT = new HMapStIW();  
     private static final Text KEY = new Text();
@@ -127,13 +133,14 @@ public class StripesPMI extends Configured implements Tool {
       // only consider the first 40 words of each line per assignment instructions
       int loop_size = Math.min(CONTEXT_SIZE, tokens.size());
 
-      if (tokens.size() < 2) return;
       for (int i = 0; i < loop_size; i++) {
         for (int j = 0; j < loop_size; j++) {
           if (!tokens.get(i).equals(tokens.get(j))) {
+            // only write distinct pairs
             DISTINCT.put(tokens.get(j), 1);
           }
         }
+
         KEY.set(tokens.get(i));
         context.write(KEY, DISTINCT);
         DISTINCT.clear();
@@ -141,6 +148,7 @@ public class StripesPMI extends Configured implements Tool {
     }
   }
 
+  // Combiner: element wise sum of stripe.
   private static final class StripesCombiner extends
       Reducer<Text, HMapStIW, Text, HMapStIW> {
     private static final HMapStIW COMBINED = new HMapStIW();
@@ -164,6 +172,7 @@ public class StripesPMI extends Configured implements Tool {
     }
   }
 
+  // Reducer: element wise sum of stripe and compute the PMI.
   private static final class StripesReducer extends
       Reducer<Text, HMapStIW, Text, HashMapWritable> {
     private static final Map<String, Integer> COMBINED = new HashMap<String, Integer>();
@@ -194,9 +203,11 @@ public class StripesPMI extends Configured implements Tool {
         throw new IOException("Cannot open occurence counts file");
       }
       
+      // Load word counts from first job into a HashMap
       String line = input.readLine();
       while (line != null) {
         String[] parts = line.split("\\s+");
+
         if(parts.length != 2){
           LOG.info("Input line should have 2 tokens: '" + line + "'");
         } else if (parts[0].equals("*")){
@@ -204,8 +215,10 @@ public class StripesPMI extends Configured implements Tool {
         } else {
           word_counts.put(parts[0], Integer.parseInt(parts[1]));
         }
+
         line = input.readLine();
       }
+
       input.close();
       LOG.info("Total lines: " + total_lines);
     }
@@ -226,9 +239,10 @@ public class StripesPMI extends Configured implements Tool {
 
       for (String word : COMBINED.keySet()) {
         int pair_count = COMBINED.get(word);
+        
         if (pair_count >= threshold) {
+          // probability we will see the pair
           p_x_and_y = pair_count / total_lines;
-          // probability we will see the right word
           p_y = word_counts.get(word) / total_lines;
           p_x = word_counts.get(key.toString()) / total_lines;
 
@@ -239,9 +253,11 @@ public class StripesPMI extends Configured implements Tool {
         }
       }
       
+      // only write the map if it has values
       if (PMI_MAP.size() > 0) {
         context.write(key, PMI_MAP);
       }
+
       COMBINED.clear();
       PMI_MAP.clear();
     }

@@ -16,7 +16,6 @@ import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
@@ -32,7 +31,6 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.FileNotFoundException;
-import java.lang.RuntimeException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.HashMap;
@@ -43,7 +41,7 @@ import java.util.HashSet;
 public class PairsPMI extends Configured implements Tool {
   private static final Logger LOG = Logger.getLogger(PairsPMI.class);
 
-  // Mapper: emits (token, 1) for every word occurrence.
+  // Mapper: emits (token, 1) for every distinct word occurrence on the line.
   public static final class OccurenceMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
     private static final IntWritable ONE = new IntWritable(1);
     private static final Text WORD = new Text();
@@ -58,10 +56,12 @@ public class PairsPMI extends Configured implements Tool {
       // only consider the first 40 words of each line per assignment instructions
       int loop_size = Math.min(CONTEXT_SIZE, tokens.size());
 
+      // emit a * in order to count the number of lines in the file
       WORD.set("*");
       context.write(WORD, ONE);
 
       for (int i = 0; i < loop_size; i++) {
+        // check if we have seen the word before
         if (distinct.add(tokens.get(i))) {
           WORD.set(tokens.get(i));
           context.write(WORD, ONE);
@@ -70,24 +70,26 @@ public class PairsPMI extends Configured implements Tool {
     }
   }
   
-  // Reducer: sums up all the counts.
+  // Combiner: sums up all the word counts.
   public static final class OccurenceCombiner extends Reducer<Text, IntWritable, Text, IntWritable> {
     private static final IntWritable SUM = new IntWritable();
 
     @Override
     public void reduce(Text key, Iterable<IntWritable> values, Context context)
         throws IOException, InterruptedException {
+      
       Iterator<IntWritable> iter = values.iterator();
       int sum = 0;
       while (iter.hasNext()) {
         sum += iter.next().get();
       }
+      
       SUM.set(sum);
       context.write(key, SUM);
     }
   }
 
-  // Reducer: sums up all the counts.
+  // Reducer: sums up all the word counts.
   public static final class OccurenceReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
     private static final IntWritable SUM = new IntWritable();
     private int threshold = 1;
@@ -100,11 +102,13 @@ public class PairsPMI extends Configured implements Tool {
     @Override
     public void reduce(Text key, Iterable<IntWritable> values, Context context)
         throws IOException, InterruptedException {
+      
       Iterator<IntWritable> iter = values.iterator();
       int sum = 0;
       while (iter.hasNext()) {
         sum += iter.next().get();
       }
+      // Only consider the words occurring on N(threshold) lines
       if(sum >= threshold) {
         SUM.set(sum);
         context.write(key, SUM);
@@ -112,6 +116,7 @@ public class PairsPMI extends Configured implements Tool {
     }
   }
 
+  // Mapper: emits ((X, Y), 1) for every distinct word pair occurrence on the line.
   private static final class PairsMapper extends Mapper<LongWritable, Text, PairOfStrings, FloatWritable> {
     private static final FloatWritable ONE = new FloatWritable(1);
     private static final PairOfStrings PAIR = new PairOfStrings();
@@ -126,11 +131,11 @@ public class PairsPMI extends Configured implements Tool {
       // only consider the first 40 words of each line per assignment instructions
       int loop_size = Math.min(CONTEXT_SIZE, tokens.size());
 
-      if (tokens.size() < 2) return;
       for (int i = 0; i < loop_size; i++) {    
         for(int j = 0; j < loop_size; j++) {
           PAIR.set(tokens.get(i), tokens.get(j));
-          String set_str = tokens.get(i) + tokens.get(j);
+          String set_str = tokens.get(i) + " " + tokens.get(j);
+          // only write distinct pairs
           if (!tokens.get(i).equals(tokens.get(j)) && distinct.add(set_str)) {
             context.write(PAIR, ONE);
           }
@@ -139,6 +144,7 @@ public class PairsPMI extends Configured implements Tool {
     }
   }
 
+  // Combiner: sums up all the pair counts.
   private static final class PairsCombiner extends
       Reducer<PairOfStrings, FloatWritable, PairOfStrings, FloatWritable> {
     private static final FloatWritable SUM = new FloatWritable();
@@ -146,6 +152,7 @@ public class PairsPMI extends Configured implements Tool {
     @Override
     public void reduce(PairOfStrings key, Iterable<FloatWritable> values, Context context)
         throws IOException, InterruptedException {
+      
       float sum = 0.0f;
       Iterator<FloatWritable> iter = values.iterator();
       while (iter.hasNext()) {
@@ -156,6 +163,7 @@ public class PairsPMI extends Configured implements Tool {
     }
   }
 
+  // Reducer: sums up all the word counts and compute the PMI.
   private static final class PairsReducer extends
       Reducer<PairOfStrings, FloatWritable, PairOfStrings, PairOfFloatInt> {
     private static final FloatWritable SUM = new FloatWritable();
@@ -186,9 +194,11 @@ public class PairsPMI extends Configured implements Tool {
         throw new IOException("Cannot open occurence counts file");
       }
       
+      // Load word counts from first job into a HashMap
       String line = input.readLine();
       while(line != null){
         String[] parts = line.split("\\s+");
+
         if(parts.length != 2){
           LOG.info("Input line should have 2 tokens: '" + line + "'");
         } else if (parts[0].equals("*")) {
@@ -196,8 +206,10 @@ public class PairsPMI extends Configured implements Tool {
         } else {
           word_counts.put(parts[0], Integer.parseInt(parts[1]));
         }
+
         line = input.readLine();
       }
+
       input.close();
       LOG.info("Total lines: " + total_lines);
     }
@@ -213,11 +225,13 @@ public class PairsPMI extends Configured implements Tool {
       }
 
       if (sum >= threshold) {
+        // probability we will see the pair
         p_x_and_y = sum / total_lines;
         // probability we will see the right word
         p_x = word_counts.get(key.getRightElement()) / total_lines;
+        // probability we will se the left word
         p_y = word_counts.get(key.getLeftElement()) / total_lines;
-        
+
         pmi = (float) (Math.log(p_x_and_y / (p_x * p_y)) / Math.log(10));
         PMI_COUNT.set(pmi, sum);
         context.write(key, PMI_COUNT);
