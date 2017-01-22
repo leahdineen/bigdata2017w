@@ -1,8 +1,6 @@
 package ca.uwaterloo.cs.bigdata2017w.assignment2
 
 import io.bespin.scala.util.Tokenizer
-import io.bespin.scala.util.WritableConversions
-
 
 import org.apache.log4j._
 import org.apache.hadoop.fs._
@@ -13,7 +11,7 @@ import org.rogach.scallop._
 import tl.lin.data.pair.PairOfStrings
 
 
-class ConfPairs(args: Seq[String]) extends ScallopConf(args) with Tokenizer{
+class ComputeBigramRelativeFrequencyPairsConf(args: Seq[String]) extends ScallopConf(args) with Tokenizer{
   mainOptions = Seq(input, output, reducers)
   val input = opt[String](descr = "input path", required = true)
   val output = opt[String](descr = "output path", required = true)
@@ -24,7 +22,7 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
   val log = Logger.getLogger(getClass().getName())
 
   def main(argv: Array[String]) {
-    val args = new Conf(argv)
+    val args = new ComputeBigramRelativeFrequencyPairsConf(argv)
 
     log.info("Input: " + args.input())
     log.info("Output: " + args.output())
