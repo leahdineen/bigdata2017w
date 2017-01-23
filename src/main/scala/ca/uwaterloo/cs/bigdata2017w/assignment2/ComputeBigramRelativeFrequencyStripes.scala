@@ -7,7 +7,7 @@ import org.apache.hadoop.fs._
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
 import org.rogach.scallop._
-
+import scala.collection.mutable
 import tl.lin.data.pair.PairOfStrings
 
 
@@ -35,18 +35,21 @@ object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
     FileSystem.get(sc.hadoopConfiguration).delete(outputDir, true)
 
     val textFile = sc.textFile(args.input())
+    textFile.cache
     
     // Compute the bigram frequency
     val stripes = textFile
       .flatMap(line => {
-        var stripes = scala.collection.mutable.Map[String, scala.collection.mutable.Map[String, Float]]()
+        var stripes = mutable.Map[String, mutable.Map[String, Float]]()
         val tokens = tokenize(line)
         var a = 0
         
+        // loop over pairs of adjacent tokens
         for ( a <- 1 until tokens.length) {
           var prev = tokens(a-1)
           var curr = tokens(a)
           
+          // add pair to map
           if (stripes contains prev) {
             var stripe = stripes(prev)
             if (stripe contains curr) {
@@ -56,13 +59,14 @@ object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
               stripe += (curr -> 1.0f)
             }
           } else {
-            var stripe = scala.collection.mutable.Map[String, Float](curr -> 1.0f)
+            var stripe = mutable.Map[String, Float](curr -> 1.0f)
             stripes put (prev, stripe)
           }
         }
         stripes
       })
       .reduceByKey((x, y) => {
+        // element wise sum of map
         y.foreach(kv => {
           if (x contains kv._1) {
             var count = x(kv._1) + kv._2
@@ -74,11 +78,14 @@ object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
         x
       })
       .map(x => {
-        var str = new scala.collection.mutable.ListBuffer[String]()
-        var sum = x._2.foldLeft(0.0f)(_+_._2)
+        var str = new mutable.ListBuffer[String]()
+        // sum of all occurences
+        var sum = x._2.foldLeft(0.0f)(_ + _._2)
+        // calculate frequency and format into string for output
         x._2.foreach(kv => {
           str += kv._1 + "=" + kv._2 / sum
         })
+        // string formatting to match the output of the bespin implementation
         x._1 + "\t{" + str.mkString(", ") + "}"
       })
       .saveAsTextFile(args.output())

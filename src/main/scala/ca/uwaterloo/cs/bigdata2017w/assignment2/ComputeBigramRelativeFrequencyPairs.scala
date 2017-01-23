@@ -38,8 +38,19 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
     
     // Compute the counts of individual words
     val words = textFile
-      .flatMap(line => tokenize(line))
-      .map(w => (w, 1))
+      .flatMap(line => {
+        val tokens = tokenize(line)
+        var bigrams = List()
+        if (tokens.length > 1) {
+          tokens.sliding(2).map(p => {
+            val first = p(0)
+            s"$first, *"
+        }).toList
+        } else {
+            bigrams
+        }
+      })
+      .map(w => (w, 1.0f))
       .reduceByKey(_ + _)
 
     // Broadcast the word counts to be used in the frequency computation
@@ -49,16 +60,30 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
     val pairs = textFile
       .flatMap(line => {
         val tokens = tokenize(line)
-        if (tokens.length > 1) tokens.sliding(2).map(p => p.mkString(", ")).toList else List()
+        var bigrams = List()
+        if (tokens.length > 1) {
+          tokens.sliding(2).map(p => {
+            val first = p(0)
+            List(s"$first, *", p.mkString(", "))
+          }).toList
+        } else {
+            bigrams
+        }
+      })
+      .flatMap(b => {
+        List(b(0), b(1))
       })
       .map(bigram => {
         val left = bigram.split(", ")(0)
-        val freq = 1f / word_dict.value.get(left).get
-        (bigram, freq)
+        if(bigram.split(", ")(1) == "*") {
+            (bigram, 1.0f)
+        } else {
+            val freq = 1.0f / word_dict.value.get(left).get
+            (bigram, freq)
+        }
       })
       .reduceByKey(_ + _)
 
-    pairs.saveAsTextFile(args.output())
-    //words.saveAsTextFile("words_output")
+    pairs.map(x => "(" + x._1 + ")\t" + x._2).saveAsTextFile(args.output())
   }
 }
