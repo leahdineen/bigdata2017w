@@ -66,7 +66,7 @@ object StripesPMI extends Tokenizer {
     val word_dict = sc.broadcast(words.collectAsMap())
 
     // Compute the Stripe PMI
-    val stripes = textFile
+    val stripes_pmi = textFile
       .flatMap(line => {
         var stripes = mutable.Map[String, mutable.Map[String, Int]]()
         val tokens = tokenize(line)
