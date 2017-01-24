@@ -7,7 +7,7 @@ import org.apache.hadoop.fs._
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
 import org.rogach.scallop._
-
+import scala.collection.mutable.MutableList
 import tl.lin.data.pair.PairOfStrings
 
 
@@ -36,54 +36,60 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
 
     val textFile = sc.textFile(args.input())
     
-    // Compute the counts of individual words
-    val words = textFile
-      .flatMap(line => {
-        val tokens = tokenize(line)
-        var bigrams = List()
-        if (tokens.length > 1) {
-          tokens.sliding(2).map(p => {
-            val first = p(0)
-            s"$first, *"
-        }).toList
-        } else {
-            bigrams
-        }
-      })
-      .map(w => (w, 1.0f))
-      .reduceByKey(_ + _)
+    // // Compute the counts of individual words
+    // val words = textFile
+    //   .flatMap(line => {
+    //     val tokens = tokenize(line)
+    //     var bigrams = MutableList[String]()
+    //     if (tokens.length > 1) {
+    //       var a = 0
+    //       // loop over pairs of adjacent tokens
+    //       for ( a <- 0 until (tokens.length - 1)) {
+    //         bigrams += tokens(a)
+    //       }
+    //     }
+    //     bigrams
+    //   })
+    //   .map(w => (w, 1))
+    //   .reduceByKey(_ + _)
 
-    // Broadcast the word counts to be used in the frequency computation
-    val word_dict = sc.broadcast(words.collectAsMap())
-    
+    // // Broadcast the word counts to be used in the frequency computation
+    // val word_dict = sc.broadcast(words.collectAsMap())
+
+    var marginal = 1.0f;
+
     // Compute the bigram frequency
     val pairs = textFile
       .flatMap(line => {
         val tokens = tokenize(line)
-        var bigrams = List()
+        var bigrams = MutableList[String]()
         if (tokens.length > 1) {
-          tokens.sliding(2).map(p => {
-            val first = p(0)
-            List(s"$first, *", p.mkString(", "))
-          }).toList
-        } else {
-            bigrams
+          var a = 0
+          // loop over pairs of adjacent tokens
+          for ( a <- 1 until tokens.length) {
+            var prev = tokens(a-1)
+            var curr = tokens(a)
+            bigrams += prev + ", *"
+            bigrams += prev + ", " + curr
+          }
         }
+        bigrams
       })
-      .flatMap(b => {
-        List(b(0), b(1))
-      })
-      .map(bigram => {
-        val left = bigram.split(", ")(0)
-        if(bigram.split(", ")(1) == "*") {
-            (bigram, 1.0f)
-        } else {
-            val freq = 1.0f / word_dict.value.get(left).get
-            (bigram, freq)
-        }
-      })
+      .map(bigram => (bigram, 1.0f))
       .reduceByKey(_ + _)
-
-    pairs.map(x => "(" + x._1 + ")\t" + x._2).saveAsTextFile(args.output())
+      .sortByKey(true)
+      .map(bigram => {
+        val left = bigram._1.split(", ")(0)
+        val right = bigram._1.split(", ")(1)
+        if(right == "*") {
+          marginal = bigram._2
+          bigram
+        } else {
+          val freq = bigram._2 / marginal
+          (bigram._1, freq.toFloat)
+        }
+      })
+      .map(x => "(" + x._1 + ")\t" + x._2)
+      .saveAsTextFile(args.output())
   }
 }
