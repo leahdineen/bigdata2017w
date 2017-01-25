@@ -29,34 +29,15 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
     log.info("Number of reducers: " + args.reducers())
 
     val conf = new SparkConf().setAppName("Compute Bigram Relative Frequency Pairs")
+    conf.set("spark.default.parallelism", args.reducers().toString)
     val sc = new SparkContext(conf)
+
 
     val outputDir = new Path(args.output())
     FileSystem.get(sc.hadoopConfiguration).delete(outputDir, true)
 
     val textFile = sc.textFile(args.input())
-    
-    // // Compute the counts of individual words
-    // val words = textFile
-    //   .flatMap(line => {
-    //     val tokens = tokenize(line)
-    //     var bigrams = MutableList[String]()
-    //     if (tokens.length > 1) {
-    //       var a = 0
-    //       // loop over pairs of adjacent tokens
-    //       for ( a <- 0 until (tokens.length - 1)) {
-    //         bigrams += tokens(a)
-    //       }
-    //     }
-    //     bigrams
-    //   })
-    //   .map(w => (w, 1))
-    //   .reduceByKey(_ + _)
 
-    // // Broadcast the word counts to be used in the frequency computation
-    // val word_dict = sc.broadcast(words.collectAsMap())
-
-    var marginal = 1.0f;
 
     // Compute the bigram frequency
     val pairs = textFile
@@ -78,16 +59,22 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
       .map(bigram => (bigram, 1.0f))
       .reduceByKey(_ + _)
       .sortByKey(true)
-      .map(bigram => {
-        val left = bigram._1.split(", ")(0)
-        val right = bigram._1.split(", ")(1)
-        if(right == "*") {
-          marginal = bigram._2
-          bigram
-        } else {
-          val freq = bigram._2 / marginal
-          (bigram._1, freq.toFloat)
+      .groupBy(bigram => bigram._1.split(", ")(0))
+      .flatMap(bigrams => {
+        var output = MutableList[(String, Float)]()
+        var marginal = 1.0f;
+        for(bigram <- bigrams._2) {
+          val left = bigram._1.split(", ")(0)
+          val right = bigram._1.split(", ")(1)
+          if(right == "*") {
+            marginal = bigram._2
+            output += bigram
+          } else {
+            val freq = bigram._2 / marginal
+            output += (bigram._1 -> freq.toFloat)
+          }
         }
+        output
       })
       .map(x => "(" + x._1 + ")\t" + x._2)
       .saveAsTextFile(args.output())

@@ -17,6 +17,7 @@ class PairsPMIConf(args: Seq[String]) extends ScallopConf(args) with Tokenizer{
   val input = opt[String](descr = "input path", required = true)
   val output = opt[String](descr = "output path", required = true)
   val reducers = opt[Int](descr = "number of reducers", required = false, default = Some(1))
+  val threshold = opt[Int](descr = "co-occurence threshold", required = false, default = Some(1))
   verify()
 }
 object PairsPMI extends Tokenizer {
@@ -28,8 +29,10 @@ object PairsPMI extends Tokenizer {
     log.info("Input: " + args.input())
     log.info("Output: " + args.output())
     log.info("Number of reducers: " + args.reducers())
+    log.info("Threshold: " + args.threshold())
 
     val conf = new SparkConf().setAppName("Compute Pairs PMI")
+    conf.set("spark.default.parallelism", args.reducers().toString)
     val sc = new SparkContext(conf)
 
     val outputDir = new Path(args.output())
@@ -38,6 +41,7 @@ object PairsPMI extends Tokenizer {
     val textFile = sc.textFile(args.input())
     textFile.cache
 
+    val threshold = args.threshold()
     val context_size = 40
     // count the number of lines in the input RDD
     val lines = textFile.count()
@@ -61,6 +65,7 @@ object PairsPMI extends Tokenizer {
       })
       .map(w => (w, 1))
       .reduceByKey(_ + _)
+      .filter(w => w._2 >= threshold)
 
     // Broadcast the word counts to be used in the frequency computation
     val word_dict = sc.broadcast(words.collectAsMap())
@@ -98,8 +103,7 @@ object PairsPMI extends Tokenizer {
         val right = p._1.split(" ")(1)
         val pair_count = p._2
 
-        //threshold?
-        if (pair_count >= 10) {
+        if (pair_count >= threshold) {
           val p_x_and_y = pair_count / total_lines.value.toFloat
           val p_x = word_dict.value.get(left).get / total_lines.value.toFloat
           val p_y = word_dict.value.get(right).get / total_lines.value.toFloat
