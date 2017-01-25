@@ -59,7 +59,7 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
       .map(bigram => (bigram, 1.0f))
       .reduceByKey(_ + _)
       .sortByKey(true)
-      .groupBy(bigram => bigram._1.split(", ")(0))
+      .groupBy(bigram => bigram._1.split(", ")(0)) //group by first element of bigram
       .flatMap(bigrams => {
         var output = MutableList[(String, Float)]()
         var marginal = 1.0f;
@@ -67,9 +67,11 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
           val left = bigram._1.split(", ")(0)
           val right = bigram._1.split(", ")(1)
           if(right == "*") {
+            // extract marginal
             marginal = bigram._2
             output += bigram
           } else {
+            // compute frequency
             val freq = bigram._2 / marginal
             output += (bigram._1 -> freq.toFloat)
           }
