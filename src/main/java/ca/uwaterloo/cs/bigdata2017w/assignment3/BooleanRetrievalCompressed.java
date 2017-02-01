@@ -59,6 +59,7 @@ public class BooleanRetrievalCompressed extends Configured implements Tool {
   private void initialize(String indexPath, String collectionPath, FileSystem fs) throws IOException {
     indexes = new ArrayList<>();
     int i = 0;
+    // find all the part-r directories
     Path p = new Path(String.format(indexPath + "/part-r-%05d", i));
     while(fs.exists(p)){
       indexes.add(new MapFile.Reader(p, fs.getConf()));
@@ -129,11 +130,8 @@ public class BooleanRetrievalCompressed extends Configured implements Tool {
 
   private Set<Integer> fetchDocumentSet(String term) throws IOException {
     Set<Integer> set = new TreeSet<>();
-    int id = 0;
 
     for (PairOfInts pair : fetchPostings(term)) {
-      // undo gap compressions
-      // id += pair.getLeftElement();
       set.add(pair.getLeftElement());
     }
 
@@ -145,28 +143,32 @@ public class BooleanRetrievalCompressed extends Configured implements Tool {
     BytesWritable value = new BytesWritable();
 
     key.set(term);
-    for(MapFile.Reader index : indexes){
-      index.get(key, value);
-    }
+    // find the partition the term is in
+    int partition = (term.hashCode() & Integer.MAX_VALUE) % indexes.size();
+    indexes.get(partition).get(key, value);
 
     byte[] bytes = value.getBytes();
 
     ByteArrayInputStream postingsByteStream = new ByteArrayInputStream(bytes);
-    DataInputStream inStream = new DataInputStream(postingsByteStream);
-
+    DataInputStream postingsInStream = new DataInputStream(postingsByteStream);
     ArrayListWritable<PairOfInts> postings = new ArrayListWritable<PairOfInts>();
 
     int docno = 0;
     int gap = 0;
-    int freq = 0;
-    int numPostings = WritableUtils.readVInt(inStream);
+    int termFreq = 0;
+    int numPostings = WritableUtils.readVInt(postingsInStream);
 
     for(int i=0; i<numPostings; i++){
-      gap = WritableUtils.readVInt(inStream);
-      freq = WritableUtils.readVInt(inStream);
+      // read compressed bytes into a posting
+      gap = WritableUtils.readVInt(postingsInStream);
+      termFreq = WritableUtils.readVInt(postingsInStream);
       docno += gap;
-      postings.add(new PairOfInts(docno, freq));
+      postings.add(new PairOfInts(docno, termFreq));
     }
+
+    postingsByteStream.close();
+    postingsInStream.close();
+
     return postings;
   }
 

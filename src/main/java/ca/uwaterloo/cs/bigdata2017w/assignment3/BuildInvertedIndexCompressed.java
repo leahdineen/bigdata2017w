@@ -88,17 +88,16 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
   private static final class MyReducer extends
       Reducer<PairOfStringInt, IntWritable, Text, BytesWritable> {
     
-    private final static ByteArrayOutputStream postingByteStream = new ByteArrayOutputStream();
-    private final static DataOutputStream outStream = new DataOutputStream(postingByteStream);
-    private static final VIntWritable DF = new VIntWritable();
+    private static final VIntWritable NUM_POSTINGS = new VIntWritable();
     private static final IntWritable ID_PREV = new IntWritable();
-    private static final PairOfInts PAIR = new PairOfInts();
-    private static final ArrayListWritable<PairOfInts> POSTINGS_LIST = new ArrayListWritable<>();
     private static final Text TERM = new Text();
+
+    private final static ByteArrayOutputStream POSTING_BYTE_STREAM = new ByteArrayOutputStream();
+    private final static DataOutputStream POSTING_OUT_STREAM = new DataOutputStream(POSTING_BYTE_STREAM);
 
     @Override
     public void setup(Context context) {
-        DF.set(0);
+        NUM_POSTINGS.set(0);
         ID_PREV.set(0);
         TERM.set("");
     }
@@ -109,56 +108,62 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
       
       Iterator<IntWritable> iter = values.iterator();
 
+      // Emit posting when we see a new term
       if(!TERM.toString().equals(key.getLeftElement()) && !TERM.toString().equals("")){
-        // compress the entire postings list before writing?
-        outStream.flush();
-        postingByteStream.flush();
+        // write to destination
+        POSTING_OUT_STREAM.flush();
+        POSTING_BYTE_STREAM.flush();
 
-        ByteArrayOutputStream toWrite = new ByteArrayOutputStream(4 + postingByteStream.size());
-        DataOutputStream out = new DataOutputStream(toWrite);
-        WritableUtils.writeVInt(out, DF.get());
-        out.write(postingByteStream.toByteArray());
-        context.write(TERM, new BytesWritable(toWrite.toByteArray()));
+        ByteArrayOutputStream contextByteStream = new ByteArrayOutputStream(4 + POSTING_BYTE_STREAM.size());
+        DataOutputStream contextOutStream = new DataOutputStream(contextByteStream);
+        // output doc frequency first
+        WritableUtils.writeVInt(contextOutStream, NUM_POSTINGS.get());
+        // output posting list
+        contextOutStream.write(POSTING_BYTE_STREAM.toByteArray());
+        context.write(TERM, new BytesWritable(contextByteStream.toByteArray()));
 
-        //context.write(TERM, new PairOfWritables<>(DF, POSTINGS_LIST));
-        DF.set(0);
+        contextByteStream.close();
+        contextOutStream.close();
+
+        // Reset the variables
+        NUM_POSTINGS.set(0);
         ID_PREV.set(0);
-        POSTINGS_LIST.clear();
-
-        postingByteStream.reset();
+        POSTING_BYTE_STREAM.reset();
       }
 
-      int df = DF.get();
+      int numPostings = NUM_POSTINGS.get();
       while (iter.hasNext()) {
         int gap = key.getRightElement() - ID_PREV.get();
-        // POSTINGS_LIST.add(new PairOfInts(gap, iter.next().get()));
 
-        WritableUtils.writeVInt(outStream, gap);
-        WritableUtils.writeVInt(outStream, iter.next().get());
+        // write the doc id gap
+        WritableUtils.writeVInt(POSTING_OUT_STREAM, gap);
+        // write the posting list
+        WritableUtils.writeVInt(POSTING_OUT_STREAM, iter.next().get());
 
         ID_PREV.set(key.getRightElement());
-        df++;
+        numPostings++;
       }
 
-      DF.set(df);
+      NUM_POSTINGS.set(numPostings);
       TERM.set(key.getLeftElement());
     }
 
     @Override
     public void cleanup(Context context) throws IOException, InterruptedException{
-        outStream.flush();
-        postingByteStream.flush();
+        // Emit last posting
+        POSTING_OUT_STREAM.flush();
+        POSTING_BYTE_STREAM.flush();
 
-        ByteArrayOutputStream toWrite = new ByteArrayOutputStream(4 + postingByteStream.size());
-        DataOutputStream out = new DataOutputStream(toWrite);
-        WritableUtils.writeVInt(out, DF.get());
-        out.write(postingByteStream.toByteArray());
-        context.write(TERM, new BytesWritable(toWrite.toByteArray()));
+        ByteArrayOutputStream contextByteStream = new ByteArrayOutputStream(4 + POSTING_BYTE_STREAM.size());
+        DataOutputStream contextOutStream = new DataOutputStream(contextByteStream);
+        WritableUtils.writeVInt(contextOutStream, NUM_POSTINGS.get());
+        contextOutStream.write(POSTING_BYTE_STREAM.toByteArray());
+        context.write(TERM, new BytesWritable(contextByteStream.toByteArray()));
 
-        postingByteStream.close();
-        outStream.close(); 
-
-      //context.write(TERM, new PairOfWritables<>(DF, POSTINGS_LIST));
+        contextByteStream.close();
+        contextOutStream.close();
+        POSTING_BYTE_STREAM.close();
+        POSTING_OUT_STREAM.close(); 
     }
   }
 
@@ -217,7 +222,6 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
     job.setOutputKeyClass(Text.class);
     job.setOutputValueClass(BytesWritable.class);
     job.setOutputFormatClass(MapFileOutputFormat.class);
-    //job.setOutputFormatClass(TextOutputFormat.class);
 
     job.setMapperClass(MyMapper.class);
     job.setReducerClass(MyReducer.class);
