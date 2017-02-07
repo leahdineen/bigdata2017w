@@ -553,13 +553,12 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     job.getConfiguration().setInt("NodeCount", numNodes);
     job.getConfiguration().setStrings("sources", sources);
 
-    String[] missingString = new String[missing.length];
-    for (int s = 0; s < missing.length; s++){
-      missingString[s] = Float.toString(missing[s]);
+    String missingString = new String(Float.toString(missing[0]));
+    for (int s = 1; s < missing.length; s++){
+      missingString += "," + Float.toString(missing[s]);
     }
 
-    job.getConfiguration().setStrings("MissingMass", String.join(",", missingString));
-    //job.getConfiguration().setFloat("MissingMass", (float) missing[0]);
+    job.getConfiguration().setStrings("MissingMass", missingString);
     
     job.setNumReduceTasks(0);
 
