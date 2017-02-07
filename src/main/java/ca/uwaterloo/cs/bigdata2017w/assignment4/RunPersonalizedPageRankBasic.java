@@ -298,15 +298,18 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
   // of the random jump factor.
   private static class MapPageRankMassDistributionClass extends
       Mapper<IntWritable, PageRankNode, IntWritable, PageRankNode> {
-    private float missingMass = 0.0f;
     private int nodeCnt = 0;
     private static ArrayList<String> sources;
+    private static ArrayList<String> missingMass;
+
 
     @Override
     public void setup(Context context) throws IOException {
       Configuration conf = context.getConfiguration();
 
-      missingMass = conf.getFloat("MissingMass", 0.0f);
+      String[] missing = conf.getStrings("MissingMass");
+      missingMass = new ArrayList(Arrays.asList(missing));
+      
       nodeCnt = conf.getInt("NodeCount", 0);
 
       String[] srcs = conf.getStrings("sources");
@@ -325,7 +328,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
           // give source node missing mass
           jump = (float) Math.log(ALPHA);
           link = (float) Math.log(1.0f - ALPHA)
-              + sumLogProbs(p, (float) Math.log(missingMass)); 
+              + sumLogProbs(p, (float) Math.log(Float.parseFloat(missingMass.get(s)))); 
         } else {
           // random jump back to source node
           link = (float) Math.log(1.0f - ALPHA) + p;
@@ -438,16 +441,19 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     // Each iteration consists of two phases (two MapReduce jobs).
 
     // Job 1: distribute PageRank mass along outgoing edges.
-    float mass = phase1(i, j, basePath, numNodes, useCombiner, useInMapperCombiner, sources);
+    float[] mass = phase1(i, j, basePath, numNodes, useCombiner, useInMapperCombiner, sources);
 
     // Find out how much PageRank mass got lost at the dangling nodes.
-    float missing = 1.0f - (float) StrictMath.exp(mass);
+    float[] missing = new float[mass.length];
+    for (int s = 0; s < missing.length; s++){
+      missing[s] = 1.0f - (float) StrictMath.exp(mass[s]);
+    }
 
     // Job 2: distribute missing mass, take care of random jump factor.
     phase2(i, j, missing, basePath, numNodes, sources);
   }
 
-  private float phase1(int i, int j, String basePath, int numNodes,
+  private float[] phase1(int i, int j, String basePath, int numNodes,
       boolean useCombiner, boolean useInMapperCombiner, String sources) throws Exception {
     Job job = Job.getInstance(getConf());
     job.setJobName("PageRank:Basic:iteration" + j + ":Phase1");
@@ -511,19 +517,22 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     job.waitForCompletion(true);
     System.out.println("Job Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
 
-    // TODO: does mass need to be an array here?
-    float mass = Float.NEGATIVE_INFINITY;
+    String[] srcs = sources.split(",");
+    float[] mass = new float[srcs.length];
+    Arrays.fill(mass, Float.NEGATIVE_INFINITY);
     FileSystem fs = FileSystem.get(getConf());
     for (FileStatus f : fs.listStatus(new Path(outm))) {
       FSDataInputStream fin = fs.open(f.getPath());
-      mass = sumLogProbs(mass, fin.readFloat());
+      for (int s = 0; s < mass.length; s++){
+        mass[s] = sumLogProbs(mass[s], fin.readFloat());
+      }
       fin.close();
     }
 
     return mass;
   }
 
-  private void phase2(int i, int j, float missing, String basePath, int numNodes, String sources) throws Exception {
+  private void phase2(int i, int j, float[] missing, String basePath, int numNodes, String sources) throws Exception {
     Job job = Job.getInstance(getConf());
     job.setJobName("PageRank:Basic:iteration" + j + ":Phase2");
     job.setJarByClass(RunPersonalizedPageRankBasic.class);
@@ -541,10 +550,17 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
     job.getConfiguration().setBoolean("mapred.map.tasks.speculative.execution", false);
     job.getConfiguration().setBoolean("mapred.reduce.tasks.speculative.execution", false);
-    job.getConfiguration().setFloat("MissingMass", (float) missing);
     job.getConfiguration().setInt("NodeCount", numNodes);
     job.getConfiguration().setStrings("sources", sources);
 
+    String[] missingString = new String[missing.length];
+    for (int s = 0; s < missing.length; s++){
+      missingString[s] = Float.toString(missing[s]);
+    }
+
+    job.getConfiguration().setStrings("MissingMass", String.join(",", missingString));
+    //job.getConfiguration().setFloat("MissingMass", (float) missing[0]);
+    
     job.setNumReduceTasks(0);
 
     FileInputFormat.setInputPaths(job, new Path(in));
