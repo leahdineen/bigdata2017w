@@ -30,6 +30,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
@@ -44,6 +45,8 @@ import tl.lin.data.pair.PairOfObjectFloat;
 import tl.lin.data.queue.TopScoredObjects;
 
 import java.io.IOException;
+import java.lang.InstantiationException;
+import java.lang.IllegalAccessException;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.ArrayList;
@@ -51,156 +54,54 @@ import java.util.ArrayList;
 public class ExtractTopPersonalizedPageRankNodes extends Configured implements Tool {
   private static final Logger LOG = Logger.getLogger(ExtractTopPersonalizedPageRankNodes.class);
 
-  private static class MyMapper extends
-      Mapper<IntWritable, PageRankNode, Text, PairOfObjectFloat<Integer>> {
-    private ArrayList<TopScoredObjects<Integer>> queue;
-    private static ArrayList<String> sources;
-
-    @Override
-    public void setup(Context context) throws IOException {
-      String[] srcs = context.getConfiguration().getStrings("sources");
-      sources = new ArrayList(Arrays.asList(srcs));
-      
-      int k = context.getConfiguration().getInt("n", 100);
-      queue = new ArrayList<TopScoredObjects<Integer>>();
-      
-      for (int s = 0; s < sources.size(); s++) {
-        queue.add(new TopScoredObjects<Integer>(k));
-      }
-    }
-
-    @Override
-    public void map(IntWritable nid, PageRankNode node, Context context) throws IOException,
-        InterruptedException {
-      for(int s = 0; s < sources.size(); s++){
-        queue.get(s).add(node.getNodeId(), node.getPageRank(s));
-      }
-    }
-
-    @Override
-    public void cleanup(Context context) throws IOException, InterruptedException {
-      Text src = new Text();
-      IntWritable key = new IntWritable();
-      FloatWritable value = new FloatWritable();
-      for(int s = 0; s < sources.size(); s++){
-
-        for (PairOfObjectFloat<Integer> pair : queue.get(s).extractAll()) {
-          // key.set(pair.getLeftElement());
-          // value.set(pair.getRightElement());
-          src.set(sources.get(s));
-          context.write(src, pair);
-        }
-      }
-
-      // Text sourceString = new Text("Source:");
-      // Text sourceNode = new Text();
-      // Text pagerank = new Text();
-      // Text nodeId = new Text();
-      // float pr = 0.0f;
-      // int id = 0;
-
-      // for(int s = 0; s < sources.size(); s++){
-      //   sourceNode.set(sources.get(s));
-      //   System.out.println("Source: " + sources.get(s));
-      //   context.write(sourceString, sourceNode);
-
-      //   for (PairOfObjectFloat<Integer> pair : queue.get(s).extractAll()) {
-      //     pr = pair.getRightElement();
-      //     id = pair.getLeftElement();
-      //     nodeId.set(pair.getLeftElement().toString());
-      //     // We're outputting a string so we can control the formatting.
-      //     pagerank.set(String.format("%.5f", pair.getRightElement()));
-          
-      //     System.out.println(String.format("%.5f %d", pr, id));
-
-      //     context.write(pagerank, nodeId);
-      //   }
-
-      //   System.out.println();  
-      // }
-    }
-  }
-
-  private static class MyReducer extends
-      Reducer<Text, PairOfObjectFloat<Integer>, Text, Text> {
-    private static ArrayList<TopScoredObjects<Integer>> queue;
-    private static ArrayList<String> sources;
-
-    @Override
-    public void setup(Context context) throws IOException {
-      String[] srcs = context.getConfiguration().getStrings("sources");
-      sources = new ArrayList(Arrays.asList(srcs));
-      
-      int k = context.getConfiguration().getInt("n", 100);
-      queue = new ArrayList<TopScoredObjects<Integer>>();
-      
-      for (int s = 0; s < sources.size(); s++) {
-        queue.add(new TopScoredObjects<Integer>(k));
-      }
-    }
-
-    @Override
-    public void reduce(Text src, Iterable<PairOfObjectFloat<Integer>> iterable, Context context)
-        throws IOException {
-      Iterator<PairOfObjectFloat<Integer>> iter = iterable.iterator();
-      int srcIndex = sources.indexOf(src.toString());
-
-      while (iter.hasNext()){
-        PairOfObjectFloat<Integer> pair = iter.next();
-        queue.get(srcIndex).add(pair.getLeftElement(), pair.getRightElement());
-      }
-    }
-
-    @Override
-    public void cleanup(Context context) throws IOException, InterruptedException {
-      // IntWritable key = new IntWritable();
-      // Text value = new Text();
-
-      // for (PairOfObjectFloat<Integer> pair : queue.extractAll()) {
-      //   key.set(pair.getLeftElement());
-      //   // We're outputting a string so we can control the formatting.
-      //   value.set(String.format("%.5f", pair.getRightElement()));
-      //   context.write(key, value);
-      // }
-
-
-      Text sourceString = new Text("Source:");
-      Text sourceNode = new Text();
-      Text pagerank = new Text();
-      Text nodeId = new Text();
-      float pr = 0.0f;
-      int id = 0;
-
-      for(int s = 0; s < sources.size(); s++){
-        sourceNode.set(sources.get(s));
-        System.out.println("Source: " + sources.get(s));
-        context.write(sourceString, sourceNode);
-
-        for (PairOfObjectFloat<Integer> pair : queue.get(s).extractAll()) {
-          pr = pair.getRightElement();
-          id = pair.getLeftElement();
-          nodeId.set(pair.getLeftElement().toString());
-          // We're outputting a string so we can control the formatting.
-          pagerank.set(String.format("%.5f", pair.getRightElement()));
-          
-          System.out.println(String.format("%.5f %d", pr, id));
-
-          context.write(pagerank, nodeId);
-        }
-
-        System.out.println();  
-      }
-    }
-  }
-
-  public ExtractTopPersonalizedPageRankNodes() {
-  }
+  public ExtractTopPersonalizedPageRankNodes() {}
 
   private static final String INPUT = "input";
   private static final String OUTPUT = "output";
   private static final String TOP = "top";
   private static final String SOURCES = "sources";
 
+  private void extractTopNodes(String inputPath, int numNodes, String sourceNodes) throws IOException, InstantiationException, IllegalAccessException {
+    ArrayList<String> sources = new ArrayList(Arrays.asList(sourceNodes.split(",")));
+    ArrayList<TopScoredObjects<Integer>> queue = new ArrayList<TopScoredObjects<Integer>>();
+    for (int s = 0; s < sources.size(); s++) {
+      queue.add(new TopScoredObjects<Integer>(numNodes));
+    }
+
+    Configuration conf = new Configuration();
+    FileSystem fs = FileSystem.get(conf);
+
+    // find all the part-m files
+    int i = 0;
+    Path p = new Path(String.format(inputPath + "/part-m-%05d", i));
+    while(fs.exists(p)){
+      SequenceFile.Reader reader = new SequenceFile.Reader(fs, p, conf);
+      IntWritable key = (IntWritable) reader.getKeyClass().newInstance();
+      PageRankNode value = (PageRankNode) reader.getValueClass().newInstance();
+
+      while(reader.next(key, value)){
+        for(int s = 0; s < sources.size(); s++){
+          queue.get(s).add(key.get(), value.getPageRank(s));
+        }
+      }
+      reader.close();
+
+      i++;
+      p = new Path(String.format(inputPath + "/part-m-%05d", i));
+    }
+
+
+    for(int s = 0; s < sources.size(); s++){
+      System.out.println("Source: " + sources.get(s));
+
+      for (PairOfObjectFloat<Integer> pair : queue.get(s).extractAll()) {
+        System.out.println(String.format("%.5f %d", Math.exp(pair.getRightElement()), pair.getLeftElement()));
+      }
+
+      System.out.println();  
+    }
+
+  }
 
   /**
    * Runs this tool.
@@ -248,39 +149,11 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     LOG.info(" - top: " + n);
     LOG.info(" - sources: " + sources);
 
-    Configuration conf = getConf();
-    conf.setInt("mapred.min.split.size", 1024 * 1024 * 1024);
-    conf.setInt("n", n);
-    conf.setStrings("sources", sources);
-
-    Job job = Job.getInstance(conf);
-    job.setJobName(ExtractTopPersonalizedPageRankNodes.class.getName() + ":" + inputPath);
-    job.setJarByClass(ExtractTopPersonalizedPageRankNodes.class);
-
-    job.setNumReduceTasks(1);
-
-    FileInputFormat.addInputPath(job, new Path(inputPath));
-    FileOutputFormat.setOutputPath(job, new Path(outputPath));
-
-    job.setInputFormatClass(SequenceFileInputFormat.class);
-    job.setOutputFormatClass(TextOutputFormat.class);
-
-    job.setMapOutputKeyClass(Text.class);
-    job.setMapOutputValueClass(PairOfObjectFloat.class);
-
-    job.setOutputKeyClass(Text.class);
-    job.setOutputValueClass(Text.class);
-
-    job.setMapperClass(MyMapper.class);
-    job.setReducerClass(MyReducer.class);
-
-    // Delete the output directory if it exists already.
-    FileSystem.get(conf).delete(new Path(outputPath), true);
-
-    job.waitForCompletion(true);
+    extractTopNodes(inputPath, n, sources);
 
     return 0;
   }
+
 
   /**
    * Dispatches command-line arguments to the tool via the {@code ToolRunner}.
