@@ -325,12 +325,12 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
         float link = Float.NEGATIVE_INFINITY;
 
         if (Integer.parseInt(sources.get(s)) == nid.get()){
-          // give source node missing mass
+          // give source nodes all jumps and all missing mass
           jump = (float) Math.log(ALPHA);
           link = (float) Math.log(1.0f - ALPHA)
               + sumLogProbs(p, (float) Math.log(Float.parseFloat(missingMass.get(s)))); 
         } else {
-          // random jump back to source node
+          // non sources nodes get no jumps and no missing mass
           link = (float) Math.log(1.0f - ALPHA) + p;
         }
 
@@ -537,7 +537,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     job.setJobName("PageRank:Basic:iteration" + j + ":Phase2");
     job.setJarByClass(RunPersonalizedPageRankBasic.class);
 
-    LOG.info("missing PageRank mass: " + missing);
+    LOG.info("missing PageRank mass: " + Arrays.toString(missing));
     LOG.info("number of nodes: " + numNodes);
 
     String in = basePath + "/iter" + formatter.format(j) + "t";
