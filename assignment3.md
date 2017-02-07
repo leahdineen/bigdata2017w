@@ -4,25 +4,28 @@ CS 489 Big Data Assignment 3
 Question 1
 ----------
 Output from `du -h cs489-2017w-leahdineen-a3-index-shakespeare` for the Shakespeare collection  
+```
 904K	cs489-2017w-leahdineen-a3-index-shakespeare/part-r-00000  
 1008K	cs489-2017w-leahdineen-a3-index-shakespeare/part-r-00001  
 856K	cs489-2017w-leahdineen-a3-index-shakespeare/part-r-00002  
 1.1M	cs489-2017w-leahdineen-a3-index-shakespeare/part-r-00003  
 3.8M	cs489-2017w-leahdineen-a3-index-shakespeare  
-
+```
 Question 2
 ----------
 Output from `hadoop fs -du -h cs489-2017w-leahdineen-a3-index-wiki` for the sample Wikipedia collection  
+```
 0        cs489-2017w-leahdineen-a3-index-wiki/_SUCCESS  
 187.1 M  cs489-2017w-leahdineen-a3-index-wiki/part-r-00000  
 240.9 M  cs489-2017w-leahdineen-a3-index-wiki/part-r-00001  
 195.5 M  cs489-2017w-leahdineen-a3-index-wiki/part-r-00002  
 239.8 M  cs489-2017w-leahdineen-a3-index-wiki/part-r-00003  
-
+```
 
 Question 3
 ----------
 Query: waterloo stanford OR cheriton AND  
+```
 219657945	V (operating system).0000	The V operating system -LRB- sometimes written V-Syste...  
 321488086	Google.0032	At least three other angel investors invested in 1998 : Amazon.com f...  
 369815664	List of civil parishes in Hampshire.0012	* Badger Farm 26 * Beauworth 27 * Bight...  
@@ -35,11 +38,12 @@ Query: waterloo stanford OR cheriton AND
 1121405762	List of schools in Hampshire.0001	State-funded schools Primary schools * Abbotts...  
 1631434266	Journal of Integer Sequences.0004	Since 2002 the journal has been hosted by the ...  
 1648101444	List of Georgetown University Law Center alumni.0005	2012 , Professor of Law at ...  
-
+```
 
 Question 4
 ----------
 Query: big data AND hadoop spark OR AND  
+```
 7309537	Computer security.0123	Some organizations are turning to big data platforms , su...  
 139647920	Performance tuning.0032	Configuration optimization Modern software systems , e.g...  
 1231730902	Security information and event management.0007	Organizations are turning to big ...  
@@ -54,4 +58,4 @@ Query: big data AND hadoop spark OR AND
 1643831516	Kernel (digital media company).0004	Data Collection Kernel operates a highly-sca...  
 1645206870	BlueTalon.0013	Partnerships BlueTalon has partnered with big data and cloud comp...  
 1692454147	Master of Science in Business Analytics.0012	Harvard Business Review noted : `` ...  
-
+```
