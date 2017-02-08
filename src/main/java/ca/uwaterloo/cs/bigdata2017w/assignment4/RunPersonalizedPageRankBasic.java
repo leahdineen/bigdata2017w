@@ -503,11 +503,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     job.setOutputValueClass(PageRankNode.class);
 
     job.setMapperClass(MapClass.class);
-
-    if (useCombiner) {
-      job.setCombinerClass(CombineClass.class);
-    }
-
+    job.setCombinerClass(CombineClass.class);
     job.setReducerClass(ReduceClass.class);
 
     FileSystem.get(getConf()).delete(new Path(out), true);

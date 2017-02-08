@@ -65,7 +65,7 @@ public class PageRankNode implements Writable {
   }
 
   public void setPageRank(int position, float f) {
-    pageranks.set(position, f);
+    this.pageranks.set(position, f);
   }
 
   public void setPageRanks(ArrayListOfFloatsWritable p) {

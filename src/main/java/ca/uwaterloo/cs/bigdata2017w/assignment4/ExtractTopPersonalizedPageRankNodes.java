@@ -95,7 +95,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
       System.out.println("Source: " + sources.get(s));
 
       for (PairOfObjectFloat<Integer> pair : queue.get(s).extractAll()) {
-        System.out.println(String.format("%.5f %d", Math.exp(pair.getRightElement()), pair.getLeftElement()));
+        System.out.println(String.format("%.5f %d", StrictMath.exp(pair.getRightElement()), pair.getLeftElement()));
       }
 
       System.out.println();  
