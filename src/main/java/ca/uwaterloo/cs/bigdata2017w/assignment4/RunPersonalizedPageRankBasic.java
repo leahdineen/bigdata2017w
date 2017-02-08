@@ -246,6 +246,8 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
         }
       }
 
+      LOG.error("leah_debug reducer mass: " + Arrays.toString(mass));
+
       // Update the final accumulated PageRank mass.
       node.setPageRanks(new ArrayListOfFloatsWritable(mass));
       context.getCounter(PageRank.massMessagesReceived).increment(massMessagesReceived);
@@ -283,6 +285,8 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
       Preconditions.checkNotNull(taskId);
       Preconditions.checkNotNull(path);
+
+      LOG.error("leah_debug reducer cleanup totalMass: " + Arrays.toString(totalMass));
 
       // Write to a file the amount of PageRank mass we've seen in this reducer.
       FileSystem fs = FileSystem.get(context.getConfiguration());
@@ -448,7 +452,8 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     for (int s = 0; s < missing.length; s++){
       missing[s] = 1.0f - (float) StrictMath.exp(mass[s]);
     }
-
+    LOG.error("leah_debug mass: " + Arrays.toString(mass));
+    LOG.error("leah_debug missing: " + Arrays.toString(missing));
     // Job 2: distribute missing mass, take care of random jump factor.
     phase2(i, j, missing, basePath, numNodes, sources);
   }
