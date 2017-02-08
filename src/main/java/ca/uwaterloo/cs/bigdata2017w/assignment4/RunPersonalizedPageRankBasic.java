@@ -246,12 +246,9 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
         }
       }
 
-      LOG.error("leah_debug reducer mass: " + Arrays.toString(mass));
-
       // Update the final accumulated PageRank mass.
       node.setPageRanks(new ArrayListOfFloatsWritable(mass));
       context.getCounter(PageRank.massMessagesReceived).increment(massMessagesReceived);
-
       // Error checking.
       if (structureReceived == 1) {
         // Everything checks out, emit final node structure with updated PageRank value.
@@ -362,9 +359,6 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
   private static final String NUM_NODES = "numNodes";
   private static final String START = "start";
   private static final String END = "end";
-  private static final String COMBINER = "useCombiner";
-  private static final String INMAPPER_COMBINER = "useInMapperCombiner";
-  private static final String RANGE = "range";
   private static final String SOURCES = "sources";
 
 
@@ -374,10 +368,6 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
   @SuppressWarnings({ "static-access" })
   public int run(String[] args) throws Exception {
     Options options = new Options();
-
-    options.addOption(new Option(COMBINER, "use combiner"));
-    options.addOption(new Option(INMAPPER_COMBINER, "user in-mapper combiner"));
-    options.addOption(new Option(RANGE, "use range partitioner"));
 
     options.addOption(OptionBuilder.withArgName("path").hasArg()
         .withDescription("base path").create(BASE));
@@ -416,10 +406,6 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     int s = Integer.parseInt(cmdline.getOptionValue(START));
     int e = Integer.parseInt(cmdline.getOptionValue(END));
     String sources = cmdline.getOptionValue(SOURCES);
-    boolean useCombiner = cmdline.hasOption(COMBINER);
-    boolean useInmapCombiner = cmdline.hasOption(INMAPPER_COMBINER);
-    boolean useRange = cmdline.hasOption(RANGE);
-
 
     LOG.info("Tool name: RunPageRank");
     LOG.info(" - base path: " + basePath);
@@ -427,25 +413,21 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     LOG.info(" - start iteration: " + s);
     LOG.info(" - end iteration: " + e);
     LOG.info(" - sources: " + sources);
-    LOG.info(" - use combiner: " + useCombiner);
-    LOG.info(" - use in-mapper combiner: " + useInmapCombiner);
-    LOG.info(" - user range partitioner: " + useRange);
 
     // Iterate PageRank.
     for (int i = s; i < e; i++) {
-      iteratePageRank(i, i + 1, basePath, n, useCombiner, useInmapCombiner, sources);
+      iteratePageRank(i, i + 1, basePath, n, sources);
     }
 
     return 0;
   }
 
   // Run each iteration.
-  private void iteratePageRank(int i, int j, String basePath, int numNodes,
-      boolean useCombiner, boolean useInMapperCombiner, String sources) throws Exception {
+  private void iteratePageRank(int i, int j, String basePath, int numNodes, String sources) throws Exception {
     // Each iteration consists of two phases (two MapReduce jobs).
 
     // Job 1: distribute PageRank mass along outgoing edges.
-    float[] mass = phase1(i, j, basePath, numNodes, useCombiner, useInMapperCombiner, sources);
+    float[] mass = phase1(i, j, basePath, numNodes, sources);
 
     // Find out how much PageRank mass got lost at the dangling nodes.
     float[] missing = new float[mass.length];
@@ -458,8 +440,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     phase2(i, j, missing, basePath, numNodes, sources);
   }
 
-  private float[] phase1(int i, int j, String basePath, int numNodes,
-      boolean useCombiner, boolean useInMapperCombiner, String sources) throws Exception {
+  private float[] phase1(int i, int j, String basePath, int numNodes, String sources) throws Exception {
     Job job = Job.getInstance(getConf());
     job.setJobName("PageRank:Basic:iteration" + j + ":Phase1");
     job.setJarByClass(RunPersonalizedPageRankBasic.class);
@@ -480,8 +461,6 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     LOG.info(" - input: " + in);
     LOG.info(" - output: " + out);
     LOG.info(" - nodeCnt: " + numNodes);
-    LOG.info(" - useCombiner: " + useCombiner);
-    LOG.info(" - useInmapCombiner: " + useInMapperCombiner);
     LOG.info(" - sources: " + sources);
     LOG.info("computed number of partitions: " + numPartitions);
 
@@ -522,6 +501,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     float[] mass = new float[srcs.length];
     Arrays.fill(mass, Float.NEGATIVE_INFINITY);
     FileSystem fs = FileSystem.get(getConf());
+
     for (FileStatus f : fs.listStatus(new Path(outm))) {
       FSDataInputStream fin = fs.open(f.getPath());
       for (int s = 0; s < mass.length; s++){
