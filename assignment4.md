@@ -1,7 +1,7 @@
 CS 489 Big Data Assignment 4
 ============================
 
-I completed the multi-source personalized pagerank. The pagerank uses regular combiners and hash partitioning.
+I completed the multi-source personalized pagerank on both linux.student and Altiscale. The pagerank uses regular combiners and hash partitioning.
 Please note that the range, useCombiner, useInmapCombiner command line options were removed to simplify the code.
 
 
