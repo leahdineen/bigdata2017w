@@ -2,14 +2,11 @@ CS 489 Big Data Assignment 4
 ============================
 
 I completed the multi-source personalized pagerank. The pagerank uses regular combiners and hash partitioning.
-Please note that the following command line options were removed to simplify the code.
-- range
-- useCombiner
-- useInmapCombiner
+Please note that the range, useCombiner, useInmapCombiner command line options were removed to simplify the code.
 
 
 Output from running on Altiscale cluster
-
+```
 Source: 73273  
 0.15509 73273  
 0.00437 5042916  
@@ -34,3 +31,4 @@ Source: 73276
 0.00146 3434750  
 0.00137 216932  
 0.00131 6897402  
+```
