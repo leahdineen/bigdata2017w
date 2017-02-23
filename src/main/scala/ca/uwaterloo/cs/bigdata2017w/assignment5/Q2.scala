@@ -27,14 +27,14 @@ object Q2 {
 //   l_shipdate = 'YYYY-MM-DD'
 // order by o_orderkey asc limit 20;
   def main(argv: Array[String]) {
-    val args = new Q1Conf(argv)
+    val args = new Q2Conf(argv)
 
     log.info("Input: " + args.input())
     log.info("Date: " + args.date())
     log.info("Text File: " + args.text())
     log.info("Parquet File: " + args.parquet())
 
-    val conf = new SparkConf().setAppName("Q1")
+    val conf = new SparkConf().setAppName("Q2")
     val sc = new SparkContext(conf)
 
     var lineItemFile = args.input()
@@ -52,8 +52,8 @@ object Q2 {
       ordersFile += "/orders/part-r-00000-8609b9f0-13be-469d-b826-b68d3eaaed45.snappy.parquet"
     }
 
-    val lineItemTable = sc.textFile(inputFile) 
-    val orderTable = sc.textFile(inputFile)
+    val lineItemTable = sc.textFile(lineItemFile) 
+    val ordersTable = sc.textFile(ordersFile)
     val targetDate = args.date()
 
     val orderKeys = lineItemTable
@@ -62,25 +62,40 @@ object Q2 {
         var cols = line.split('|')
         // ship date is index 10
         if (cols(10).contains(targetDate)) {
-            keys += cols(0)
+          keys += cols(0)
         }
         keys
       })
       .map(key => (key, 1))
       .reduceByKey(_ + _)
 
-    val clerksByKey = orderTable
-      .flatMap(line => {
-        var keys = MutableList[String]()
+    val clerksByKey = ordersTable
+      .map(line => {
         var cols = line.split('|')
-
+        (cols(0), cols(6))
       })
-      .map(key => (key, 1))
       .reduceByKey(_ + _)
+      .cogroup(orderKeys)
+      .flatMap(group => {
+        var merged = MutableList[String]()
+        var values = group._2
+
+        for(clerk <- values._1) {
+          merged += group._1 + '|' + clerk
+        }
+        merged
+      })
+      .map(pair => {
+        val s = pair.split('|')
+        (s(0), s(1))
+      })
       .sortByKey(true)
       .collect()
       .take(20)
-      .foreach(println)
+      .foreach(ans => {
+        // output: (o_clerk,o_orderkey)
+        println((ans._2, ans._1))
+      })
 
   }
 }

@@ -54,7 +54,7 @@ object Q1 {
         var cols = line.split('|')
         // ship date is index 10
         if (cols(10).contains(targetDate)) {
-            dates += targetDate
+          dates += targetDate
         }
         dates
       })
