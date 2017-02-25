@@ -1,5 +1,6 @@
 package ca.uwaterloo.cs.bigdata2017w.assignment5
 
+import org.apache.spark.sql.SparkSession
 import org.apache.log4j._
 import org.apache.hadoop.fs._
 import org.apache.spark.SparkContext
@@ -13,7 +14,6 @@ class Q1Conf(args: Seq[String]) extends ScallopConf(args) {
   val input = opt[String](descr = "input path", required = true)
   // date could be of the form YYY-MM-DD, YYYY-MM, or YYYY
   val date = opt[String](descr = "date", required = true)
-  // TODO: check that these work
   val text = opt[Boolean](descr = "use text data")
   val parquet = opt[Boolean](descr = "use parquet data")
   verify()
@@ -33,22 +33,20 @@ object Q1 {
     val conf = new SparkConf().setAppName("Q1")
     val sc = new SparkContext(conf)
 
-    var inputFile = args.input()
-
-    if(args.text() && args.parquet()){
-      log.error("Can't supply both text and parquet flags")
-      return
-    }  
-    if (args.text()){
-      inputFile += "/lineitem.tbl"
-    } else if (args.text()) {
-      inputFile += "/lineitem/part-r-00000-06ffba52-de7d-4aa9-a540-0b8fa4a96d6e.snappy.parquet"
-    }
-
-    val lineItemTable = sc.textFile(inputFile) 
     val targetDate = args.date()
 
-    val shipDateCount = lineItemTable
+    val lineItemRDD: org.apache.spark.rdd.RDD[String] = { 
+      if (args.text()) {
+        sc.textFile(args.input() + "/lineitem.tbl")
+      }         
+      else {
+        val sparkSession = SparkSession.builder.getOrCreate
+        val lineitemDF = sparkSession.read.parquet(args.input() + "/lineitem")
+        lineitemDF.rdd.map(line => {line.mkString("|")})
+      } 
+    }
+
+    val shipDateCount = lineItemRDD
       .flatMap(line => {
         var dates = MutableList[String]()
         var cols = line.split('|')

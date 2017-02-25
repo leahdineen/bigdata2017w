@@ -1,5 +1,6 @@
 package ca.uwaterloo.cs.bigdata2017w.assignment5
 
+import org.apache.spark.sql.SparkSession
 import org.apache.log4j._
 import org.apache.hadoop.fs._
 import org.apache.spark.SparkContext
@@ -13,7 +14,6 @@ class Q2Conf(args: Seq[String]) extends ScallopConf(args) {
   val input = opt[String](descr = "input path", required = true)
   // date could be of the form YYY-MM-DD, YYYY-MM, or YYYY
   val date = opt[String](descr = "date", required = true)
-  // TODO: check that these work
   val text = opt[Boolean](descr = "use text data")
   val parquet = opt[Boolean](descr = "use parquet data")
   verify()
@@ -21,11 +21,11 @@ class Q2Conf(args: Seq[String]) extends ScallopConf(args) {
 object Q2 {
   val log = Logger.getLogger(getClass().getName())
 
-// select o_clerk, o_orderkey from lineitem, orders
-// where
-//   l_orderkey = o_orderkey and
-//   l_shipdate = 'YYYY-MM-DD'
-// order by o_orderkey asc limit 20;
+  // select o_clerk, o_orderkey from lineitem, orders
+  // where
+  //   l_orderkey = o_orderkey and
+  //   l_shipdate = 'YYYY-MM-DD'
+  // order by o_orderkey asc limit 20;
   def main(argv: Array[String]) {
     val args = new Q2Conf(argv)
 
@@ -37,57 +37,60 @@ object Q2 {
     val conf = new SparkConf().setAppName("Q2")
     val sc = new SparkContext(conf)
 
-    var lineItemFile = args.input()
-    var ordersFile = args.input()
-
-    if(args.text() && args.parquet()){
-      log.error("Can't supply both text and parquet flags")
-      return
-    }  
-    if (args.text()){
-      lineItemFile += "/lineitem.tbl"
-      ordersFile += "/orders.tbl"
-    } else if (args.text()) {
-      lineItemFile += "/lineitem/part-r-00000-06ffba52-de7d-4aa9-a540-0b8fa4a96d6e.snappy.parquet"
-      ordersFile += "/orders/part-r-00000-8609b9f0-13be-469d-b826-b68d3eaaed45.snappy.parquet"
+    val lineItemRDD: org.apache.spark.rdd.RDD[String] = { 
+      if (args.text()) {
+        sc.textFile(args.input() + "/lineitem.tbl")
+      }         
+      else {
+        val sparkSession = SparkSession.builder.getOrCreate
+        val lineitemDF = sparkSession.read.parquet(args.input() + "/lineitem")
+        lineitemDF.rdd.map(line => {line.mkString("|")})
+      } 
     }
 
-    val lineItemTable = sc.textFile(lineItemFile) 
-    val ordersTable = sc.textFile(ordersFile)
+    val ordersRDD: org.apache.spark.rdd.RDD[String] = { 
+      if (args.text()) {
+        sc.textFile(args.input() + "/orders.tbl")
+      }         
+      else {
+        val sparkSession = SparkSession.builder.getOrCreate
+        val ordersDF = sparkSession.read.parquet(args.input() + "/orders")
+        ordersDF.rdd.map(line => {line.mkString("|")})
+      } 
+    }
+
     val targetDate = args.date()
 
-    val orderKeys = lineItemTable
-      .flatMap(line => {
-        var keys = MutableList[String]()
-        var cols = line.split('|')
-        // ship date is index 10
-        if (cols(10).contains(targetDate)) {
-          keys += cols(0)
-        }
-        keys
-      })
-      .map(key => (key, 1))
-      .reduceByKey(_ + _)
-
-    val clerksByKey = ordersTable
+    val orderKeys = lineItemRDD
       .map(line => {
         var cols = line.split('|')
+        // (order key, ship date)
+        (cols(0), cols(10))
+      })
+      .filter(pair => pair._2.contains(targetDate))
+
+    val clerksByKey = ordersRDD
+      .map(line => {
+        var cols = line.split('|')
+        // (order key, clerk)
         (cols(0), cols(6))
       })
-      .reduceByKey(_ + _)
       .cogroup(orderKeys)
       .flatMap(group => {
         var merged = MutableList[String]()
-        var values = group._2
+        var clerks = group._2._1
+        var lineitem = group._2._2
 
-        for(clerk <- values._1) {
-          merged += group._1 + '|' + clerk
+        for(l <- lineitem) {
+          for(c <- clerks) {
+            merged += group._1 + '|' + c
+          }
         }
         merged
       })
       .map(pair => {
         val s = pair.split('|')
-        (s(0), s(1))
+        (s(0).toInt, s(1))
       })
       .sortByKey(true)
       .collect()
