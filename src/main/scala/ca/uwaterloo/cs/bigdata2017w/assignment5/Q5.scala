@@ -121,6 +121,7 @@ object Q5 {
       .map(nation => (nation, 1))
       .reduceByKey(_ + _)
       .sortByKey(true)
+      .collect()
       .foreach(println)
   }
 }
