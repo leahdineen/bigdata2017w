@@ -3,6 +3,7 @@ CS 489 Big Data Assignment 5
 
 Q1:
 ANSWER=266
+Verfied on linux and altiscale
 
 Q2:
 (Clerk#000000803,2309)

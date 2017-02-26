@@ -43,11 +43,6 @@ object Q4 {
 
     val targetDate = args.date()
 
-    var lineItemFile = args.input()
-    var ordersFile = args.input()
-    var customerFile = args.input()
-    var nationFile = args.input()
-
     val lineItemRDD: org.apache.spark.rdd.RDD[String] = { 
       if (args.text()) {
         sc.textFile(args.input() + "/lineitem.tbl")
