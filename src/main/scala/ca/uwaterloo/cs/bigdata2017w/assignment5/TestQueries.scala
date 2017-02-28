@@ -40,14 +40,21 @@ object TestQueries {
     supplierDF.createOrReplaceTempView("supplier")
     
     val sqlDF = sqlContext.sql("""
-      select n_nationkey, n_name, count(*) from lineitem, orders, customer, nation
+select
+  l_returnflag,
+  l_linestatus,
+  sum(l_quantity) as sum_qty,
+  sum(l_extendedprice) as sum_base_price,
+  sum(l_extendedprice*(1-l_discount)) as sum_disc_price,
+  sum(l_extendedprice*(1-l_discount)*(1+l_tax)) as sum_charge,
+  avg(l_quantity) as avg_qty,
+  avg(l_extendedprice) as avg_price,
+  avg(l_discount) as avg_disc,
+  count(*) as count_order
+from lineitem
 where
-  l_orderkey = o_orderkey and
-  o_custkey = c_custkey and
-  c_nationkey = n_nationkey and
-  l_shipdate = '1996-01-01'
-group by n_nationkey, n_name
-order by n_nationkey asc
+  l_shipdate = '1994-07-04'
+group by l_returnflag, l_linestatus
     """)
     sqlDF.show()
 
