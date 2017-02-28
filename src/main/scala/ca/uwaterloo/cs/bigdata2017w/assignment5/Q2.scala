@@ -77,24 +77,18 @@ object Q2 {
       })
       .cogroup(orderKeys)
       .flatMap(group => {
-        var merged = MutableList[String]()
+        var merged = MutableList[(Int, String)]()
         var clerks = group._2._1
         var lineitem = group._2._2
 
         for(l <- lineitem) {
           for(c <- clerks) {
-            merged += group._1 + '|' + c
+            merged += (group._1.toInt -> c)
           }
         }
         merged
       })
-      .map(pair => {
-        val s = pair.split('|')
-        (s(0).toInt, s(1))
-      })
-      .sortByKey(true)
-      .collect()
-      .take(20)
+      .takeOrdered(20)(Ordering[Int].on(x => x._1))
       .foreach(ans => {
         // output: (o_clerk,o_orderkey)
         println((ans._2, ans._1))

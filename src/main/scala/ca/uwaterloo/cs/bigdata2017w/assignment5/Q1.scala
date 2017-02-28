@@ -48,15 +48,14 @@ object Q1 {
 
     val shipDateCount = lineItemRDD
       .flatMap(line => {
-        var dates = MutableList[String]()
+        var dates = MutableList[(String, Int)]()
         var cols = line.split('|')
         // ship date is index 10
         if (cols(10).contains(targetDate)) {
-          dates += targetDate
+          dates += (targetDate -> 1)
         }
         dates
       })
-      .map(date => (date, 1))
       .reduceByKey(_ + _)
       .collect()
       .foreach(ans => {

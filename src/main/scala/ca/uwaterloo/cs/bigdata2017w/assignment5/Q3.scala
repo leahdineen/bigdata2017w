@@ -79,7 +79,6 @@ object Q3 {
         // (part key, part name)
         (cols(0), cols(1))
       })
-      .reduceByKey(_ + _)
     val partKeyToPartName = sc.broadcast(parts.collectAsMap())
 
     val suppliers = supplierRDD
@@ -88,26 +87,19 @@ object Q3 {
         // (supplier key, supplier name)
         (cols(0), cols(1))
       })
-      .reduceByKey(_ + _)
     val supplierKeyToSupplierName = sc.broadcast(suppliers.collectAsMap())
 
     val orderKeysByDate = lineItemRDD
       .flatMap(line => {
-        var keys = MutableList[String]()
+        var keys = MutableList[(Int, (String, String))]()
         var cols = line.split('|')
         // ship date is index 10
         if (cols(10).contains(targetDate)) {
           val partName = partKeyToPartName.value.get(cols(1)).get
           val supplierName = supplierKeyToSupplierName.value.get(cols(2)).get
-          keys += cols(0) + '|' + partName + '|' + supplierName
+          keys += (cols(0).toInt -> (partName, supplierName))
         }
         keys
-      })
-      .map(key => (key, 1))
-      .reduceByKey(_ + _)
-      .map(group => {
-        val s = group._1.split('|')
-        (s(0).toInt, (s(1), (s(2))))
       })
       .sortByKey(true)
       .collect()

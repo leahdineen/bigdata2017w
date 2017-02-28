@@ -120,25 +120,22 @@ object Q4 {
       })
       .cogroup(orderKeysByDate)
       .flatMap(group => {
-        var merged = MutableList[(String, String)]()
+        var merged = MutableList[((String, String), Int)]()
         var nations = group._2._1
         var lineitem = group._2._2
 
         for(l <- lineitem) {
           for(n <- nations) {
-            merged += n
+            merged += (n -> 1)
           }
         }
         merged
       })
-      .map(nation => (nation, 1))
       .reduceByKey(_ + _)
       .takeOrdered(20)(Ordering[Int].on(x => x._1._1.toInt))
       .foreach(x => {
-        println("(" + x._1._1 + "," + x._1._2 + "," + x._2 + ")")
+        // output: (n_nationkey,n_name,count(*))
+        println((x._1._1, x._1._2, x._2))
       })
-
-    // output: (n_nationkey,n_name,count(*))
-
   }
 }

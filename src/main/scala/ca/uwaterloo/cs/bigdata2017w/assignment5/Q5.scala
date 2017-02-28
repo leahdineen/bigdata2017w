@@ -107,21 +107,23 @@ object Q5 {
       .filter(x => x._2.equals("CANADA") || x._2.equals("UNITED STATES"))
       .cogroup(orderKeysByDate)
       .flatMap(group => {
-        var merged = MutableList[String]()
+        var merged = MutableList[((String, String), Int)]()
         var nations = group._2._1
         var lineitem = group._2._2
 
         for(l <- lineitem) {
           for(n <- nations) {
-            merged += n + "," + l
+            merged += ((n, l) -> 1)
           }
         }
         merged
       })
-      .map(nation => (nation, 1))
       .reduceByKey(_ + _)
       .sortByKey(true)
       .collect()
-      .foreach(println)
+      .foreach(x => {
+        // output: (nation name, ship month, count(*))
+        println((x._1._1, x._1._2, x._2))
+      })
   }
 }
