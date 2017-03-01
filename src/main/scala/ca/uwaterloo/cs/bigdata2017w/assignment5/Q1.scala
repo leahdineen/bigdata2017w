@@ -1,6 +1,7 @@
 package ca.uwaterloo.cs.bigdata2017w.assignment5
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.rdd.RDD
 import org.apache.log4j._
 import org.apache.hadoop.fs._
 import org.apache.spark.SparkContext
@@ -35,7 +36,7 @@ object Q1 {
 
     val targetDate = args.date()
 
-    val lineItemRDD: org.apache.spark.rdd.RDD[String] = { 
+    val lineItemRDD: RDD[String] = { 
       if (args.text()) {
         sc.textFile(args.input() + "/lineitem.tbl")
       }         

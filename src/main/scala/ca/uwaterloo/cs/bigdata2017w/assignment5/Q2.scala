@@ -1,6 +1,7 @@
 package ca.uwaterloo.cs.bigdata2017w.assignment5
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.rdd.RDD
 import org.apache.log4j._
 import org.apache.hadoop.fs._
 import org.apache.spark.SparkContext
@@ -37,7 +38,7 @@ object Q2 {
     val conf = new SparkConf().setAppName("Q2")
     val sc = new SparkContext(conf)
 
-    val lineItemRDD: org.apache.spark.rdd.RDD[String] = { 
+    val lineItemRDD: RDD[String] = { 
       if (args.text()) {
         sc.textFile(args.input() + "/lineitem.tbl")
       }         
@@ -48,7 +49,7 @@ object Q2 {
       } 
     }
 
-    val ordersRDD: org.apache.spark.rdd.RDD[String] = { 
+    val ordersRDD: RDD[String] = { 
       if (args.text()) {
         sc.textFile(args.input() + "/orders.tbl")
       }         

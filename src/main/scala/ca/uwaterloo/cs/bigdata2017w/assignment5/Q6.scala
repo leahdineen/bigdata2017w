@@ -1,6 +1,7 @@
 package ca.uwaterloo.cs.bigdata2017w.assignment5
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.rdd.RDD
 import org.apache.log4j._
 import org.apache.hadoop.fs._
 import org.apache.spark.SparkContext
@@ -50,7 +51,7 @@ object Q6 {
 
     val targetDate = args.date()
 
-    val lineItemRDD: org.apache.spark.rdd.RDD[String] = { 
+    val lineItemRDD: RDD[String] = { 
       if (args.text()) {
         sc.textFile(args.input() + "/lineitem.tbl")
       }         
@@ -104,11 +105,19 @@ object Q6 {
       })
       .collect()
       .foreach(x => {
-        var keyString = x._1._1 + "," + x._1._2
-        var v = x._2
-        var valueString = v._1 + "," + v._2 + "," + v._3 + "," + v._4 +
-        "," + v._5/v._8 + "," + v._6/v._8 + "," + v._7/v._8 + "," + v._8
-        println("(" + keyString + "," + valueString + ")")
+        var output = (
+          x._1._1,
+          x._1._2,
+          x._2._1,
+          x._2._2,
+          x._2._3,
+          x._2._4,
+          x._2._5 / x._2._8,
+          x._2._6 / x._2._8,
+          x._2._7 / x._2._8,
+          x._2._8
+        )
+        println(output)
       })
 
   }

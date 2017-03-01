@@ -1,6 +1,7 @@
 package ca.uwaterloo.cs.bigdata2017w.assignment5
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.rdd.RDD
 import org.apache.log4j._
 import org.apache.hadoop.fs._
 import org.apache.spark.SparkContext
@@ -55,7 +56,7 @@ object Q7 {
 
     val targetDate = args.date()
 
-    val lineItemRDD: org.apache.spark.rdd.RDD[String] = { 
+    val lineItemRDD: RDD[String] = { 
       if (args.text()) {
         sc.textFile(args.input() + "/lineitem.tbl")
       }         
@@ -66,7 +67,7 @@ object Q7 {
       } 
     }
 
-    val ordersRDD: org.apache.spark.rdd.RDD[String] = { 
+    val ordersRDD: RDD[String] = { 
       if (args.text()) {
         sc.textFile(args.input() + "/orders.tbl")
       }         
@@ -77,7 +78,7 @@ object Q7 {
       } 
     }
 
-    val customerRDD: org.apache.spark.rdd.RDD[String] = { 
+    val customerRDD: RDD[String] = { 
       if (args.text()) {
         sc.textFile(args.input() + "/customer.tbl")
       }         
@@ -145,7 +146,7 @@ object Q7 {
     .reduceByKey(_ + _)
     .takeOrdered(10)(Ordering[Double].reverse.on(x => x._2))
     .foreach(x => {
-      println("(" + x._1._1 + "," + x._1._2 + "," + x._2 + "," + x._1._3 + "," + x._1._4 + ")")
+      println((x._1._1, x._1._2, x._2, x._1._3, x._1._4))
     })
 
   }
