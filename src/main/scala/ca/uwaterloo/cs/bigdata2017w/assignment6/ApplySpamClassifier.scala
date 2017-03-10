@@ -13,16 +13,16 @@ class ApplySpamClassifierConf(args: Seq[String]) extends ScallopConf(args) {
   mainOptions = Seq(input, model, output)
   val input = opt[String](descr = "input path", required = true)
   val model = opt[String](descr = "model", required = true)
-  val output = opt[String](descr ="output path", required = true)
+  val output = opt[String](descr = "output path", required = true)
   verify()
 }
 object ApplySpamClassifier {
   val log = Logger.getLogger(getClass().getName())
 
   // Scores a document based on its list of features.
-  def spamminess(w: Map[Int, Double], features: Array[Int]) : Double = {
+  def spamminess(weights: Map[Int, Double], features: Array[Int]) : Double = {
     var score = 0d
-    features.foreach(f => if (w.contains(f)) score += w(f))
+    features.foreach(f => if (weights.contains(f)) score += weights(f))
     score
   }
 
