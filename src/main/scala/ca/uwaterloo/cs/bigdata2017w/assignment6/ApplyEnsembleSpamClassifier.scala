@@ -78,7 +78,7 @@ object ApplyEnsembleSpamClassifier {
           var prediction = if(score > 0) "spam" else "ham"
           (docID, label, score, prediction)
         }
-        else if (method.value == "voting") {
+        else if (method.value == "vote") {
           var score = 0
           scores.foreach(s => {
             if(s > 0) score += 1 
