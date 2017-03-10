@@ -59,7 +59,6 @@ object ApplyEnsembleSpamClassifier {
 
     val method = sc.broadcast(args.method())
 
-
     val predictions = textData
       .map(line => {
         var data = line.split(" ")

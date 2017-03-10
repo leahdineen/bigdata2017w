@@ -8,16 +8,17 @@ import org.rogach.scallop._
 import scala.collection.mutable.MutableList
 import scala.collection.mutable.Map
 import scala.math
+import scala.util.Random
 
 class TrainSpamClassifierConf(args: Seq[String]) extends ScallopConf(args) {
-  mainOptions = Seq(input, model)
+  mainOptions = Seq(input, model, shuffle)
   val input = opt[String](descr = "input path", required = true)
   val model = opt[String](descr = "model", required = true)
+  val shuffle = opt[Boolean](descr = "shuffle data")
   verify()
 }
 object TrainSpamClassifier {
   val log = Logger.getLogger(getClass().getName())
-
 
   // Scores a document based on its list of features.
   def spamminess(w: Map[Int, Double], features: Array[Int]) : Double = {
@@ -31,6 +32,7 @@ object TrainSpamClassifier {
 
     log.info("Input: " + args.input())
     log.info("Model: " + args.model())
+    log.info("Shuffle: " + args.shuffle())
 
     val conf = new SparkConf().setAppName("TrainSpamClassifier")
     val sc = new SparkContext(conf)
@@ -39,7 +41,10 @@ object TrainSpamClassifier {
     val modelDir = new Path(args.model())
     FileSystem.get(sc.hadoopConfiguration).delete(modelDir, true)
 
-    val trained = trainingData
+    val shuffle = sc.broadcast(args.shuffle())
+
+
+    var trained = trainingData
       .map(line => {
         var data = line.split(" ")
         var docID = data(0)
@@ -47,9 +52,16 @@ object TrainSpamClassifier {
         var features = data.drop(2).map(f => f.toInt)
 
         // key 0 so all training points are sent to the same reducer
-        (0, (docID, label, features))
+        // add random int for shuffling
+        (0, (docID, label, features, Random.nextInt))
       })
-      .groupByKey(1)
+     
+      if(shuffle.value) {
+        // sort by random int
+        trained = trained.sortBy(_._2._4)
+      }
+
+      trained.groupByKey(1)
       .flatMap(x => {
         // learned weights
         val w = Map[Int, Double]()
