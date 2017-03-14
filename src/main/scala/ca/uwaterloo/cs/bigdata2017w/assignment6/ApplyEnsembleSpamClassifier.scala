@@ -37,12 +37,12 @@ object ApplyEnsembleSpamClassifier {
 
     val conf = new SparkConf().setAppName("ApplyEnsembleSpamClassifier")
     val sc = new SparkContext(conf)
-    val fs = FileSystem.get(sc.hadoopConfiguration)
 
     val textData = sc.textFile(args.input())
     val outputDir = new Path(args.output())
-    fs.delete(outputDir, true)
+    FileSystem.get(sc.hadoopConfiguration).delete(outputDir, true)
 
+    // TODO: read in a better way
     // read each model into a list
     val models = MutableList(sc.textFile(args.model() + "/part-00000"), sc.textFile(args.model() + "/part-00001"), sc.textFile(args.model() + "/part-00002"))
 
@@ -57,6 +57,7 @@ object ApplyEnsembleSpamClassifier {
       })
     val modelWeights = sc.broadcast(weights)
 
+    // TODO: value check the method
     val method = sc.broadcast(args.method())
 
     val predictions = textData

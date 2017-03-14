@@ -37,12 +37,11 @@ object TrainSpamClassifier {
     val conf = new SparkConf().setAppName("TrainSpamClassifier")
     val sc = new SparkContext(conf)
 
-    val trainingData = sc.textFile(args.input())
+    val trainingData = sc.textFile(args.input(), 1)
     val modelDir = new Path(args.model())
     FileSystem.get(sc.hadoopConfiguration).delete(modelDir, true)
 
     val shuffle = sc.broadcast(args.shuffle())
-
 
     var trained = trainingData
       .map(line => {
@@ -56,12 +55,12 @@ object TrainSpamClassifier {
         (0, (docID, label, features, Random.nextInt))
       })
      
-      if(shuffle.value) {
-        // sort by random int
-        trained = trained.sortBy(_._2._4)
-      }
+    if(shuffle.value) {
+      // sort by random int
+      trained = trained.sortBy(_._2._4)
+    }
 
-      trained.groupByKey(1)
+    trained.groupByKey(1)
       .flatMap(x => {
         // learned weights
         val w = Map[Int, Double]()
