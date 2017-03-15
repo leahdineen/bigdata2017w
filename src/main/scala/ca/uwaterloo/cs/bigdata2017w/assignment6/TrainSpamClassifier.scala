@@ -37,7 +37,7 @@ object TrainSpamClassifier {
     val conf = new SparkConf().setAppName("TrainSpamClassifier")
     val sc = new SparkContext(conf)
 
-    val trainingData = sc.textFile(args.input(), 1)
+    val trainingData = sc.textFile(args.input())
     val modelDir = new Path(args.model())
     FileSystem.get(sc.hadoopConfiguration).delete(modelDir, true)
 

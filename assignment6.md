@@ -50,3 +50,38 @@ Question 5
 1-ROCA%: 17.05
 1-ROCA%: 16.60
 ```
+
+
+After changing textfile
+4. Evaluate Group-X, Group-Y, and Britney
+1-ROCA%: 17.25
+1-ROCA%: 12.82
+1-ROCA%: 16.61
+
+1-ROCA%: 17.25
+1-ROCA%: 12.82
+1-ROCA%: 16.98
+
+3-classifier ensemble
+1-ROCA%: 11.69
+1-ROCA%: 16.58
+
+1-ROCA%: 11.69
+1-ROCA%: 16.58
+
+concatenated
+1-ROCA%: 17.83
+
+1-ROCA%: 16.22
+
+shuffles
+1-ROCA%: 18.37
+1-ROCA%: 15.41
+1-ROCA%: 15.62
+1-ROCA%: 16.95
+1-ROCA%: 16.65
+1-ROCA%: 21.84
+1-ROCA%: 19.71
+1-ROCA%: 18.98
+1-ROCA%: 16.39
+1-ROCA%: 16.14
