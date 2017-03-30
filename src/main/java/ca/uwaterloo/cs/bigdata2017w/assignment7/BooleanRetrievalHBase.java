@@ -49,7 +49,6 @@ public class BooleanRetrievalHBase extends Configured implements Tool {
   public static final String[] FAMILIES = { "p" };
   public static final byte[] PF = FAMILIES[0].getBytes();
 
-  // TODO: which of these are needed?
   private Table indexTable;
   private Table collectionTable;
   private Stack<Set<Integer>> stack;
