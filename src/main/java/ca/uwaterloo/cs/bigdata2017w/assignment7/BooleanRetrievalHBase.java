@@ -46,9 +46,6 @@ import java.util.TreeSet;
 public class BooleanRetrievalHBase extends Configured implements Tool {
   private static final Logger LOG = Logger.getLogger(BooleanRetrievalHBase.class);
 
-  public static final String[] FAMILIES = { "p" };
-  public static final byte[] PF = FAMILIES[0].getBytes();
-
   private Table indexTable;
   private Table collectionTable;
   private Stack<Set<Integer>> stack;
@@ -123,7 +120,7 @@ public class BooleanRetrievalHBase extends Configured implements Tool {
   private Set<byte[]> fetchPostings(String term) throws IOException {
     Get get = new Get(Bytes.toBytes(term));
     Result result = indexTable.get(get);
-    NavigableMap<byte[],byte[]> map = result.getFamilyMap(PF);
+    NavigableMap<byte[],byte[]> map = result.getFamilyMap(BuildInvertedIndexHBase.PF);
 
     return map.keySet();
   }
